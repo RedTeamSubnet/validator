@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
-# check=skip=SecretsUsedInArgOrEnv,UndefinedVar
+# check=skip=SecretsUsedInArgOrEnv
 
 ARG PYTHON_VERSION=3.10
-ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim-bookworm
+ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim-trixie
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG RT_VALIDATOR_SLUG="agent.validator"
+ARG RT_VALIDATOR_SLUG="agent-validator"
 
 
 ## Here is the builder image:
@@ -13,10 +13,6 @@ FROM ${BASE_IMAGE} AS builder
 
 ARG DEBIAN_FRONTEND
 ARG RT_VALIDATOR_SLUG
-
-ENV CARGO_HOME=/usr/local/rust/cargo \
-	RUSTUP_HOME=/usr/local/rust/rustup
-ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -27,22 +23,13 @@ RUN --mount=type=cache,target=/root/.cache,sharing=locked \
 	echo "BUILDING TARGET ARCHITECTURE: ${_BUILD_TARGET_ARCH}" && \
 	rm -rfv /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* && \
 	apt-get clean -y && \
-	# echo "Acquire::http::Pipeline-Depth 0;" >> /etc/apt/apt.conf.d/99fixbadproxy && \
-	# echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/99fixbadproxy && \
-	# echo "Acquire::BrokenProxy true;" >> /etc/apt/apt.conf.d/99fixbadproxy && \
 	apt-get update --fix-missing -o Acquire::CompressionTypes::Order::=gz && \
-	apt-get install -y --no-install-recommends \
-		curl \
-		pkg-config \
-		libssl-dev \
-		build-essential && \
-	curl https://sh.rustup.rs -sSf | sh -s -- -y  && \
-	python3 -m pip install --timeout 60 -U pip uv
+	apt-get install -y --no-install-recommends git && \
+	python -m pip install --timeout 60 -U pip
 
-# COPY ./requirements* ./
 RUN	--mount=type=cache,target=/root/.cache,sharing=locked \
 	--mount=type=bind,source=requirements.txt,target=requirements.txt \
-	python3 -m uv pip install --prefix=/install -r ./requirements.txt
+	python -m pip install --prefix=/install -r ./requirements.txt
 
 
 ## Here is the base image:
@@ -53,34 +40,39 @@ ARG RT_VALIDATOR_SLUG
 
 ARG RT_HOME_DIR="/app"
 ARG RT_VALIDATOR_DIR="${RT_HOME_DIR}/${RT_VALIDATOR_SLUG}"
+ARG RT_VALIDATOR_CONFIGS_DIR="/etc/${RT_VALIDATOR_SLUG}"
 ARG RT_VALIDATOR_DATA_DIR="/var/lib/${RT_VALIDATOR_SLUG}"
 ARG RT_VALIDATOR_LOGS_DIR="/var/log/${RT_VALIDATOR_SLUG}"
 ARG RT_VALIDATOR_TMP_DIR="/tmp/${RT_VALIDATOR_SLUG}"
+ARG RT_VALIDATOR_USE_CENTRALIZED=true
 ## IMPORTANT!: Get hashed password from build-arg!
-## echo "RT_VALIDATOR_PASSWORD123" | openssl passwd -5 -stdin
-ARG HASH_PASSWORD="\$5\$Oj7P76XGgsYG9Id0\$NN2QAOdpmdpskF8OrdDCneL8xsowliFsDwHMXXLphnC"
+## echo "RT_VALIDATOR_PASSWORD123" | openssl passwd -6 -stdin
+ARG HASH_PASSWORD="\$6\$Sj/hn9bzwQQzDby8\$ixRbUKQeXCz.2/OteKzcCv19WlC6PCNrQRn7obrMRWFLG9tBen5zLJOYNWSUpFas8LVWMHnhzlP72su0muo0p1"
 ARG UID=1000
 ARG GID=11000
 ARG USER=rt-user
 ARG GROUP=rt-group
+ARG DOCKER_VERSION="28.5.2"
 
 ENV RT_VALIDATOR_SLUG="${RT_VALIDATOR_SLUG}" \
 	RT_HOME_DIR="${RT_HOME_DIR}" \
 	RT_VALIDATOR_DIR="${RT_VALIDATOR_DIR}" \
+	RT_VALIDATOR_CONFIGS_DIR="${RT_VALIDATOR_CONFIGS_DIR}" \
 	RT_VALIDATOR_DATA_DIR="${RT_VALIDATOR_DATA_DIR}" \
 	RT_VALIDATOR_LOGS_DIR="${RT_VALIDATOR_LOGS_DIR}" \
 	RT_VALIDATOR_TMP_DIR="${RT_VALIDATOR_TMP_DIR}" \
+	RT_VALIDATOR_USE_CENTRALIZED=${RT_VALIDATOR_USE_CENTRALIZED} \
 	UID=${UID} \
 	GID=${GID} \
 	USER=${USER} \
 	GROUP=${GROUP} \
 	PYTHONIOENCODING=utf-8 \
-	PYTHONUNBUFFERED=1 \
-	PYTHONPATH="${RT_VALIDATOR_DIR}:${PYTHONPATH}"
+	PYTHONUNBUFFERED=1
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN rm -rfv /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* /root/.cache/* && \
+RUN --mount=type=secret,id=HASH_PASSWORD \
+	rm -rfv /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* /root/.cache/* && \
 	apt-get clean -y && \
 	# echo "Acquire::http::Pipeline-Depth 0;" >> /etc/apt/apt.conf.d/99fixbadproxy && \
 	# echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/99fixbadproxy && \
@@ -95,7 +87,7 @@ RUN rm -rfv /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* /root/.cache/*
 		iproute2 \
 		curl \
 		nano && \
-	curl -fsSL https://get.docker.com/ | sh && \
+	curl -fsSL https://get.docker.com/ | sh -s -- --version ${DOCKER_VERSION} && \
 	apt-get clean -y && \
 	sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
 	sed -i -e 's/# en_AU.UTF-8 UTF-8/en_AU.UTF-8 UTF-8/' /etc/locale.gen && \
@@ -108,6 +100,11 @@ RUN rm -rfv /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* /root/.cache/*
 	usermod -aG docker ${USER} && \
 	echo "${USER} ALL=(ALL) NOPASSWD: ALL" > "/etc/sudoers.d/${USER}" && \
 	chmod 0440 "/etc/sudoers.d/${USER}" && \
+	if [ -f "/run/secrets/HASH_PASSWORD" ]; then \
+		echo -e "${USER}:$(cat /run/secrets/HASH_PASSWORD)" | chpasswd -e; \
+	else \
+		echo -e "${USER}:${HASH_PASSWORD}" | chpasswd -e; \
+	fi && \
 	echo -e "${USER}:${HASH_PASSWORD}" | chpasswd -e && \
 	echo -e "\nalias ls='ls -aF --group-directories-first --color=auto'" >> /root/.bashrc && \
 	echo -e "alias ll='ls -alhF --group-directories-first --color=auto'\n" >> /root/.bashrc && \
@@ -115,10 +112,23 @@ RUN rm -rfv /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* /root/.cache/*
 	echo "alias ls='ls -aF --group-directories-first --color=auto'" >> "/home/${USER}/.bashrc" && \
 	echo -e "alias ll='ls -alhF --group-directories-first --color=auto'\n" >> "/home/${USER}/.bashrc" && \
 	rm -rfv /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* /root/.cache/* "/home/${USER}/.cache/*" && \
-	mkdir -pv "${RT_VALIDATOR_DIR}" "${RT_VALIDATOR_DATA_DIR}" "${RT_VALIDATOR_LOGS_DIR}" "${RT_VALIDATOR_TMP_DIR}" && \
-	chown -Rc "${USER}:${GROUP}" "${RT_HOME_DIR}" "${RT_VALIDATOR_DATA_DIR}" "${RT_VALIDATOR_LOGS_DIR}" "${RT_VALIDATOR_TMP_DIR}" && \
-	find "${RT_VALIDATOR_DIR}" "${RT_VALIDATOR_DATA_DIR}" -type d -exec chmod -c 770 {} + && \
-	find "${RT_VALIDATOR_DIR}" "${RT_VALIDATOR_DATA_DIR}" -type d -exec chmod -c ug+s {} + && \
+	mkdir -pv "${RT_VALIDATOR_DIR}" \
+		"${RT_VALIDATOR_CONFIGS_DIR}" \
+		"${RT_VALIDATOR_DATA_DIR}" \
+		"${RT_VALIDATOR_LOGS_DIR}" \
+		"${RT_VALIDATOR_TMP_DIR}" && \
+	chown -Rc "${USER}:${GROUP}" \
+		"${RT_HOME_DIR}" \
+		"${RT_VALIDATOR_CONFIGS_DIR}" \
+		"${RT_VALIDATOR_DATA_DIR}" \
+		"${RT_VALIDATOR_LOGS_DIR}" \
+		"${RT_VALIDATOR_TMP_DIR}" && \
+	find "${RT_VALIDATOR_DIR}" \
+		"${RT_VALIDATOR_CONFIGS_DIR}" \
+		"${RT_VALIDATOR_DATA_DIR}" -type d -exec chmod -c 770 {} + && \
+	find "${RT_VALIDATOR_DIR}" \
+		"${RT_VALIDATOR_CONFIGS_DIR}" \
+		"${RT_VALIDATOR_DATA_DIR}" -type d -exec chmod -c ug+s {} + && \
 	find "${RT_VALIDATOR_LOGS_DIR}" "${RT_VALIDATOR_TMP_DIR}" -type d -exec chmod -c 775 {} + && \
 	find "${RT_VALIDATOR_LOGS_DIR}" "${RT_VALIDATOR_TMP_DIR}" -type d -exec chmod -c +s {} +
 
@@ -133,9 +143,8 @@ COPY --from=builder /install /usr/local
 FROM base AS app
 
 WORKDIR "${RT_VALIDATOR_DIR}"
-COPY --chown=${UID}:${GID} ./redteam_core ${RT_VALIDATOR_DIR}/redteam_core
-COPY --chown=${UID}:${GID} ./neurons/validator ${RT_VALIDATOR_DIR}/neurons/validator
-COPY --chown=${UID}:${GID} --chmod=770 ./neurons/validator/scripts/docker/*.sh /usr/local/bin/
+COPY --chown=${UID}:${GID} ./src .
+COPY --chown=${UID}:${GID} --chmod=770 ./scripts/docker/*.sh /usr/local/bin/
 
 # VOLUME ["${RT_VALIDATOR_DATA_DIR}"]
 

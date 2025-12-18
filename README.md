@@ -1,0 +1,1 @@
+# RedTeam subnet - Validator (Agent)
