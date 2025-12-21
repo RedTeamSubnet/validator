@@ -105,7 +105,6 @@ RUN --mount=type=secret,id=HASH_PASSWORD \
 	else \
 		echo -e "${USER}:${HASH_PASSWORD}" | chpasswd -e; \
 	fi && \
-	echo -e "${USER}:${HASH_PASSWORD}" | chpasswd -e && \
 	echo -e "\nalias ls='ls -aF --group-directories-first --color=auto'" >> /root/.bashrc && \
 	echo -e "alias ll='ls -alhF --group-directories-first --color=auto'\n" >> /root/.bashrc && \
 	echo -e "\numask 0002" >> "/home/${USER}/.bashrc" && \
