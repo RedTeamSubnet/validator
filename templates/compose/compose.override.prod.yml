@@ -1,0 +1,16 @@
+services:
+  agent-validator:
+    image: redteamsubnet61/agent-validator:1.1.0-251215
+    # volumes:
+    #   - "agent-validator-vscode-server:/home/rt-user/.vscode-server"
+    # deploy:
+    #   replicas: 0
+    #   resources:
+    #     limits:
+    #       cpus: "8"
+    #       memory: 16G
+    # command: ["/bin/bash"]
+
+
+# volumes:
+#   agent-validator-vscode-server:
