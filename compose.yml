@@ -1,0 +1,25 @@
+services:
+  agent-validator:
+    image: redteamsubnet61/agent-validator:latest
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      TERM: ${TERM:-xterm}
+      TZ: ${TZ:-UTC}
+      HF_TOKEN: "${HF_TOKEN}"
+      RT_VALIDATOR_HF_REPO: ${RT_VALIDATOR_HF_REPO}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - "sidecar-btcli-data:${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}"
+      - "agent-validator-logs:${RT_VALIDATOR_LOGS_DIR:-/var/log/agent-validator}"
+      - "agent-validator-data:${RT_VALIDATOR_DATA_DIR:-/var/lib/agent-validator}"
+    tty: true
+
+
+volumes:
+  sidecar-btcli-data:
+  agent-validator-logs:
+  agent-validator-data:

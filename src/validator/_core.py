@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import time
 import datetime
@@ -861,3 +860,8 @@ class Validator(BaseValidator):
                     self.miner_commits.setdefault(
                         (miner_state.miner_uid, miner_state.miner_hotkey), {}
                     )[challenge_name] = miner_state.latest_commit
+
+
+__all__ = [
+    "Validator",
+]
