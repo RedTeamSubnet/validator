@@ -86,6 +86,7 @@ RUN --mount=type=secret,id=HASH_PASSWORD \
 		iputils-ping \
 		iproute2 \
 		curl \
+		git \
 		nano && \
 	curl -fsSL https://get.docker.com/ | sh -s -- --version ${DOCKER_VERSION} && \
 	apt-get clean -y && \
