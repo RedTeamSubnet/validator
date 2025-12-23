@@ -1,6 +1,6 @@
 services:
   agent-validator:
-    image: redteamsubnet61/agent-validator:latest
+    image: redteamsubnet61/agent-validator:1.1.0-251215
     build:
       context: .
     restart: unless-stopped
@@ -13,13 +13,7 @@ services:
       - path: .env
         required: false
     volumes:
-      - "sidecar-btcli-data:${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}"
-      - "agent-validator-logs:${RT_VALIDATOR_LOGS_DIR:-/var/log/agent-validator}"
-      - "agent-validator-data:${RT_VALIDATOR_DATA_DIR:-/var/lib/agent-validator}"
+      - "./volumes/storage/sidecar-btcli/data:/var/lib/sidecar-btcli"
+      - "./volumes/storage/agent-validator/logs:/var/log/agent-validator"
+      - "./volumes/storage/agent-validator/data:/var/lib/agent-validator"
     tty: true
-
-
-volumes:
-  sidecar-btcli-data:
-  agent-validator-logs:
-  agent-validator-data:
