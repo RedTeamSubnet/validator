@@ -514,4 +514,5 @@ volumes/**
 volumes/storage/storage-db/data/
 volumes/storage/storage-db/configdb/
 volumes/storage/server-subtensor/data/
-!volumes/configs/*
+!volumes/configs/**/
+!volumes/configs/**/*
