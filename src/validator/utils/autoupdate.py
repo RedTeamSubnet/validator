@@ -6,7 +6,7 @@ from threading import Event, Thread
 import bittensor as bt
 import git
 
-from config.validator import ValidatorConfig
+from config.validator import AutoUpdaterConfig
 
 
 class AutoUpdater:
@@ -15,7 +15,7 @@ class AutoUpdater:
         self._thread = Thread(target=self._monitor, daemon=True)
         self._check_for_updates()
         self._thread.start()
-        self.config = ValidatorConfig()
+        self.config = AutoUpdaterConfig()
 
     def _monitor(self):
         while not self._stop_flag.is_set():

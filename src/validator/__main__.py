@@ -3,11 +3,10 @@
 import time
 import bittensor as bt
 
-from redteam_core.validator.autoupdate import AutoUpdater
-from redteam_core.common import get_config
 from redteam_core import constants
 
 from ._core import Validator
+from .utils import AutoUpdater
 
 
 # The main function parses the configuration and runs the validator.
@@ -16,7 +15,7 @@ if __name__ == "__main__":
     AutoUpdater()
 
     # Start the validator
-    with Validator(get_config()) as validator:
+    with Validator() as validator:
         while True:
             bt.logging.info("Validator running...")
             time.sleep(constants.EPOCH_LENGTH // 4)

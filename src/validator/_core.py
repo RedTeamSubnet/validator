@@ -10,7 +10,7 @@ import numpy as np
 import bittensor as bt
 from cryptography.fernet import Fernet
 
-from redteam_core import BaseValidator, Commit, constants
+from redteam_core import Commit, constants
 from redteam_core.challenge_pool import ACTIVE_CHALLENGES
 from redteam_core.validator import (
     ChallengeManager,
@@ -21,9 +21,11 @@ from redteam_core.validator.miner_manager import MinerManager
 from redteam_core.validator.models import MinerChallengeCommit
 from redteam_core.validator.utils import create_validator_request_header_fn
 
+from ._base import BaseValidator
+
 
 class Validator(BaseValidator):
-    def __init__(self, config: bt.Config):
+    def __init__(self):
         """
         A validator node that manages challenge scoring and miner evaluation in the network.
 
@@ -45,7 +47,7 @@ class Validator(BaseValidator):
         Scoring occurs daily at a configured hour, with support for both
         local and centralized scoring modes.
         """
-        super().__init__(config)
+        super().__init__()
 
         self.validator_request_header_fn = create_validator_request_header_fn(
             validator_uid=self.uid,
@@ -61,14 +63,14 @@ class Validator(BaseValidator):
 
         # Setup storage manager and publish public hf_repo_id for storage
         self.storage_manager = StorageManager(
-            cache_dir=self.config.validator.cache_dir,
+            cache_dir=self.config.BITTENSOR.SUBNET.CACHE_DIR,
             validator_request_header_fn=self.validator_request_header_fn,
-            hf_repo_id=self.config.validator.hf_repo_id,
+            hf_repo_id=self.config.BITTENSOR.SUBNET.HF_REPO_ID,
             sync_on_init=True,
         )
         # Commit the repo_id
         self.commit_repo_id_to_chain(
-            hf_repo_id=self.config.validator.hf_repo_id, max_retries=5
+            hf_repo_id=self.config.BITTENSOR.SUBNET.HF_REPO_ID, max_retries=5
         )
 
         self.challenge_managers: dict[str, ChallengeManager] = {}
@@ -134,7 +136,7 @@ class Validator(BaseValidator):
         state = None
 
         # Try to load state based on scoring configuration
-        if self.config.validator.use_centralized_scoring:
+        if self.config.BITTENSOR.SUBNET.USE_CENTRALIZED_SCORING:
             # Try to get state from centralized storage
             bt.logging.info(
                 f"[INIT] Trying to get validator state from centralized storage for validator {self.uid}, hotkey: {self.wallet.hotkey.ss58_address}"
@@ -217,7 +219,7 @@ class Validator(BaseValidator):
         bt.logging.success(f"[FORWARD] Revealed commits updated for {date_time}")
 
         # Forward the revealed commits to the appropriate scoring method
-        if self.config.validator.use_centralized_scoring:
+        if self.config.BITTENSOR.SUBNET.USE_CENTRALIZED_SCORING:
             self.forward_centralized_scoring(revealed_commits)
         else:
             self.forward_local_scoring(revealed_commits)
@@ -415,7 +417,7 @@ class Validator(BaseValidator):
             )
 
             # Query Storage API
-            endpoint = f"{constants.STORAGE_API.URL}/fetch-rewarder-challenge-state"
+            endpoint = f"{constants.STORAGE_API_URL}/fetch-rewarder-challenge-state"
             data = {"challenge_name": challenge_name}
 
             response = requests.post(
@@ -500,7 +502,7 @@ class Validator(BaseValidator):
         ) = bt.utils.weight_utils.process_weights_for_netuid(
             uids=self.metagraph.uids,
             weights=weights,
-            netuid=self.config.netuid,
+            netuid=self.config.BITTENSOR.SUBNET.NETUID,
             subtensor=self.subtensor,
             metagraph=self.metagraph,
         )
@@ -518,7 +520,7 @@ class Validator(BaseValidator):
         # Set weights on-chain
         result, log = self.subtensor.set_weights(
             wallet=self.wallet,
-            netuid=self.config.netuid,
+            netuid=self.config.BITTENSOR.SUBNET.NETUID,
             uids=uint_uids,
             weights=uint_weights,
             version_key=constants.SPEC_VERSION,
@@ -753,7 +755,7 @@ class Validator(BaseValidator):
                 )
                 self.subtensor.commit(
                     wallet=self.wallet,
-                    netuid=self.config.netuid,
+                    netuid=self.config.BITTENSOR.SUBNET.NETUID,
                     data=message,
                 )
                 bt.logging.success(
@@ -773,7 +775,7 @@ class Validator(BaseValidator):
         """
         Retrieves the storage API key from the config.
         """
-        endpoint = f"{constants.STORAGE_API.URL}/get-api-key"
+        endpoint = f"{constants.STORAGE_API_URL}/get-api-key"
         data = {
             "validator_uid": self.uid,
             "validator_hotkey": self.metagraph.hotkeys[self.uid],
@@ -800,7 +802,7 @@ class Validator(BaseValidator):
                 )
             except Exception as e:
                 bt.logging.error(
-                    f"Error in periodic commit for repo ID '{self.config.validator.hf_repo_id}': {e}"
+                    f"Error in periodic commit for repo ID '{self.config.BITTENSOR.SUBNET.HF_REPO_ID}': {e}"
                 )
             time.sleep(interval)
 
