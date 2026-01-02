@@ -27,7 +27,7 @@ class BaseValidator(ABC):
         bt.logging.enable_info()
         if self.config.BITTENSOR.LOGGING.LEVEL == "DEBUG":
             bt.logging.enable_debug()
-        if self.config.BITTENSOR.LOGGING.LEVEL == "TRACE":
+        elif self.config.BITTENSOR.LOGGING.LEVEL == "TRACE":
             bt.logging.enable_trace()
         bt.logging.info(
             f"Running validator for subnet: {self.config.BITTENSOR.SUBNET.NETUID} on network: {self.config.BITTENSOR.SUBTENSOR_NETWORK} with config:"
@@ -37,15 +37,17 @@ class BaseValidator(ABC):
     def setup_bittensor_objects(self):
         bt.logging.info("Setting up Bittensor objects.")
 
-        # Create Bittensor Config object from MainConfig
         bt_config = self._create_bittensor_config()
 
         self.wallet = bt.wallet(config=bt_config)
         bt.logging.info(f"Wallet: {self.wallet}")
+
         self.subtensor = bt.subtensor(config=bt_config)
         bt.logging.info(f"Subtensor: {self.subtensor}")
+
         self.dendrite = bt.dendrite(wallet=self.wallet)
         bt.logging.info(f"Dendrite: {self.dendrite}")
+
         self.metagraph = self.subtensor.metagraph(self.config.BITTENSOR.SUBNET.NETUID)
         bt.logging.info(f"Metagraph: {self.metagraph}")
 
