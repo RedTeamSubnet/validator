@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 import traceback
@@ -6,7 +7,7 @@ from abc import ABC, abstractmethod
 import bittensor as bt
 from substrateinterface import SubstrateInterface
 from redteam_core.config import MainConfig
-from config.validator import ValidatorMainConfig
+from .config.validator import ValidatorMainConfig
 
 
 class BaseValidator(ABC):
@@ -136,18 +137,19 @@ class BaseValidator(ABC):
         """
         bt_config = bt.Config()
         # Set wallet configuration
+        if bt_config.wallet is None:
+            bt_config.wallet = bt.Config()
+
+        bt_config.wallet.path = str(
+            os.getenv("RT_BTCLI_WALLET_DIR", "~/.bittensor/wallets")
+        )
         bt_config.wallet.name = self.validator_config.WALLET_NAME
         bt_config.wallet.hotkey = self.validator_config.HOTKEY_NAME
 
+        if bt_config.subtensor is None:
+            bt_config.subtensor = bt.Config()
         # Set subtensor configuration
         bt_config.subtensor.network = self.config.BITTENSOR.SUBTENSOR_NETWORK
-
-        # Set axon configuration
-        bt_config.axon.port = self.config.BITTENSOR.AXON_PORT
-
-        # Set logging configuration
-        bt_config.logging.logging_dir = self.config.BITTENSOR.LOGGING.DIR
-        bt_config.logging.logging_level = self.config.BITTENSOR.LOGGING.LEVEL
 
         # Set netuid (subnet configuration)
         bt_config.netuid = self.config.BITTENSOR.SUBNET.NETUID

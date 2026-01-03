@@ -6,16 +6,16 @@ from threading import Event, Thread
 import bittensor as bt
 import git
 
-from config.validator import AutoUpdaterConfig
+from validator.config.validator import AutoUpdaterConfig
 
 
 class AutoUpdater:
     def __init__(self):
+        self.config = AutoUpdaterConfig()
         self._stop_flag = Event()
         self._thread = Thread(target=self._monitor, daemon=True)
         self._check_for_updates()
         self._thread.start()
-        self.config = AutoUpdaterConfig()
 
     def _monitor(self):
         while not self._stop_flag.is_set():

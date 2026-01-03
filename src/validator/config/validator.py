@@ -35,6 +35,12 @@ class ValidatorMainConfig(BaseConfig):
         default=None,
         description="SS58 address of the hotkey to use for validation (overrides HOTKEY_NAME if set)",
     )
+    AXON_PORT: int = Field(
+        default=8091,
+        description="Port for the validator's Axon service",
+        ge=1,
+        le=65535,
+    )
     AUTOUPDATER: AutoUpdaterConfig = Field(default_factory=AutoUpdaterConfig)
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX_VALIDATOR)
 

@@ -93,16 +93,7 @@ class Validator(BaseValidator):
         Initializes and updates challenge managers based on current active challenges.
         Filters challenges by date and maintains challenge manager consistency.
         """
-        # Avoid mutating the original ACTIVE_CHALLENGES
-        all_challenges = deepcopy(ACTIVE_CHALLENGES)
-
-        # Remove challenges that are not active and setup the active challenges
-        if datetime.datetime.now(datetime.timezone.utc) <= datetime.datetime(
-            2025, 6, 10, 14, 0, 0, 0, datetime.timezone.utc
-        ):
-            all_challenges.pop("ab_sniffer_v1", None)
-
-        self.active_challenges = all_challenges
+        self.active_challenges = deepcopy(ACTIVE_CHALLENGES)
 
         # Add challenge managers for all active challenges
         for challenge in self.active_challenges.keys():
@@ -175,7 +166,6 @@ class Validator(BaseValidator):
 
         bt.logging.success("[INIT] Validator state initialization completed")
 
-    # MARK: Validation Loop
     def forward(self):
         """
         Execute the main validation cycle for all active challenges.
