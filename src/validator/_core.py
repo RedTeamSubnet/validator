@@ -127,7 +127,7 @@ class Validator(BaseValidator):
         state = None
 
         # Try to load state based on scoring configuration
-        if self.config.BITTENSOR.SUBNET.USE_CENTRALIZED_SCORING:
+        if self.validator_config.USE_CENTRALIZED_SCORING:
             # Try to get state from centralized storage
             bt.logging.info(
                 f"[INIT] Trying to get validator state from centralized storage for validator {self.uid}, hotkey: {self.wallet.hotkey.ss58_address}"
@@ -209,7 +209,7 @@ class Validator(BaseValidator):
         bt.logging.success(f"[FORWARD] Revealed commits updated for {date_time}")
 
         # Forward the revealed commits to the appropriate scoring method
-        if self.config.BITTENSOR.SUBNET.USE_CENTRALIZED_SCORING:
+        if self.validator_config.USE_CENTRALIZED_SCORING:
             self.forward_centralized_scoring(revealed_commits)
         else:
             self.forward_local_scoring(revealed_commits)

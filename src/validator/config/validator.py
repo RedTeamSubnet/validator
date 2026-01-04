@@ -48,6 +48,10 @@ class ValidatorMainConfig(BaseConfig):
         default=None,
         description="SS58 address of the hotkey to use for validation (overrides HOTKEY_NAME if set)",
     )
+    USE_CENTRALIZED_SCORING: bool = Field(
+        default=True,
+        description="Use centralized scoring service instead of local scoring",
+    )
     AXON_PORT: int = Field(
         default=8091,
         description="Port for the validator's Axon service",

@@ -26,9 +26,9 @@ class BaseValidator(ABC):
     def setup_logging(self):
         bt.logging.enable_default()
         bt.logging.enable_info()
-        if self.config.BITTENSOR.LOGGING.LEVEL == "DEBUG":
+        if self.config.BITTENSOR.LOGGING_LEVEL == "DEBUG":
             bt.logging.enable_debug()
-        elif self.config.BITTENSOR.LOGGING.LEVEL == "TRACE":
+        elif self.config.BITTENSOR.LOGGING_LEVEL == "TRACE":
             bt.logging.enable_trace()
         bt.logging.info(
             f"Running validator for subnet: {self.config.BITTENSOR.SUBNET.NETUID} on network: {self.config.BITTENSOR.SUBTENSOR_NETWORK} with config:"
