@@ -10,7 +10,6 @@ import numpy as np
 import bittensor as bt
 from cryptography.fernet import Fernet
 
-from redteam_core import Commit, constants
 from redteam_core.challenge_pool import ACTIVE_CHALLENGES
 from redteam_core.validator import (
     ChallengeManager,
@@ -20,7 +19,7 @@ from redteam_core.validator import (
 from redteam_core.validator.miner_manager import MinerManager
 from redteam_core.validator.models import MinerChallengeCommit
 from redteam_core.validator.utils import create_validator_request_header_fn
-
+from redteam_core.protocol import Commit
 from ._base import BaseValidator
 
 
@@ -241,7 +240,7 @@ class Validator(BaseValidator):
         today = datetime.datetime.now(datetime.timezone.utc)
         today_key = today.strftime("%Y-%m-%d")
         current_hour = today.hour
-        validate_scoring_hour = current_hour >= constants.SCORING_HOUR
+        validate_scoring_hour = current_hour >= self.config.SCORING_HOUR
         validate_scoring_date = today_key not in self.scoring_dates
         # Validate if scoring is due
         if validate_scoring_hour and validate_scoring_date:
@@ -265,7 +264,7 @@ class Validator(BaseValidator):
         else:
             bt.logging.warning(
                 f"[FORWARD CENTRALIZED SCORING] Skipping scoring for {today_key}"
-                f"[FORWARD CENTRALIZED SCORING] Current hour: {current_hour}, Scoring hour: {constants.SCORING_HOUR}"
+                f"[FORWARD CENTRALIZED SCORING] Current hour: {current_hour}, Scoring hour: {self.config.SCORING_HOUR}"
                 f"[FORWARD CENTRALIZED SCORING] Scoring dates: {self.scoring_dates}"
                 f"[FORWARD CENTRALIZED SCORING] Revealed commits: {str(revealed_commits)[:100]}..."
             )
@@ -300,7 +299,7 @@ class Validator(BaseValidator):
         today = datetime.datetime.now(datetime.timezone.utc)
         current_hour = today.hour
         today_key = today.strftime("%Y-%m-%d")
-        validate_scoring_hour = current_hour >= constants.SCORING_HOUR
+        validate_scoring_hour = current_hour >= self.config.SCORING_HOUR
         validate_scoring_date = today_key not in self.scoring_dates
 
         # Validate if scoring is due
@@ -377,7 +376,7 @@ class Validator(BaseValidator):
         else:
             bt.logging.warning(
                 f"[FORWARD LOCAL SCORING] Skipping scoring for {today_key}"
-                f"[FORWARD LOCAL SCORING] Current hour: {current_hour}, Scoring hour: {constants.SCORING_HOUR}"
+                f"[FORWARD LOCAL SCORING] Current hour: {current_hour}, Scoring hour: {self.config.SCORING_HOUR}"
                 f"[FORWARD LOCAL SCORING] Scoring dates: {self.scoring_dates}"
                 f"[FORWARD LOCAL SCORING] Revealed commits: {str(revealed_commits)[:100]}..."
             )
@@ -405,7 +404,7 @@ class Validator(BaseValidator):
             )
 
             # Query Storage API
-            endpoint = f"{constants.STORAGE_API_URL}/fetch-rewarder-challenge-state"
+            endpoint = f"{self.config.STORAGE_API_URL}/fetch-rewarder-challenge-state"
             data = {"challenge_name": challenge_name}
 
             response = requests.post(
@@ -511,7 +510,7 @@ class Validator(BaseValidator):
             netuid=self.config.BITTENSOR.SUBNET_NETUID,
             uids=uint_uids,
             weights=uint_weights,
-            version_key=constants.SPEC_VERSION,
+            version_key=self.config.SPEC_VERSION,
         )
 
         if result:
@@ -533,7 +532,7 @@ class Validator(BaseValidator):
         if bt.logging.get_level() < 20:
             bt.logging.set_info()
         responses: list[Commit] = dendrite.query(
-            axons, synapse, timeout=constants.QUERY_TIMEOUT
+            axons, synapse, timeout=self.config.QUERY_TIMEOUT
         )
         if bt.logging.get_level() < 20:
             bt.logging.set_debug()
@@ -580,7 +579,7 @@ class Validator(BaseValidator):
                 commit_timestamp = current_miner_challenge_commit.commit_timestamp
                 encrypted_commit = current_miner_challenge_commit.encrypted_commit
                 key = current_miner_challenge_commit.key
-                if key and constants.is_commit_on_time(commit_timestamp):
+                if key and self.config.is_commit_on_time(commit_timestamp):
                     try:
                         f = Fernet(key)
                         commit = f.decrypt(encrypted_commit).decode()
@@ -763,7 +762,7 @@ class Validator(BaseValidator):
         """
         Retrieves the storage API key from the config.
         """
-        endpoint = f"{constants.STORAGE_API_URL}/get-api-key"
+        endpoint = f"{self.config.STORAGE_API_URL}/get-api-key"
         data = {
             "validator_uid": self.uid,
             "validator_hotkey": self.metagraph.hotkeys[self.uid],
