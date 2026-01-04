@@ -490,7 +490,7 @@ class Validator(BaseValidator):
         ) = bt.utils.weight_utils.process_weights_for_netuid(
             uids=self.metagraph.uids,
             weights=weights,
-            netuid=self.config.BITTENSOR.SUBNET.NETUID,
+            netuid=self.config.BITTENSOR.SUBNET_NETUID,
             subtensor=self.subtensor,
             metagraph=self.metagraph,
         )
@@ -508,7 +508,7 @@ class Validator(BaseValidator):
         # Set weights on-chain
         result, log = self.subtensor.set_weights(
             wallet=self.wallet,
-            netuid=self.config.BITTENSOR.SUBNET.NETUID,
+            netuid=self.config.BITTENSOR.SUBNET_NETUID,
             uids=uint_uids,
             weights=uint_weights,
             version_key=constants.SPEC_VERSION,
@@ -743,7 +743,7 @@ class Validator(BaseValidator):
                 )
                 self.subtensor.commit(
                     wallet=self.wallet,
-                    netuid=self.config.BITTENSOR.SUBNET.NETUID,
+                    netuid=self.config.BITTENSOR.SUBNET_NETUID,
                     data=message,
                 )
                 bt.logging.success(

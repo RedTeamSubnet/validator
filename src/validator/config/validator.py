@@ -46,7 +46,7 @@ class ValidatorMainConfig(BaseConfig):
     AUTOUPDATER: AutoUpdaterConfig = Field(default_factory=AutoUpdaterConfig)
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX_VALIDATOR)
 
-    @model_validator("before")
+    @model_validator(mode="after")
     def validate_cache_dir(self) -> Self:
         """Ensure cache directory exists and is writable."""
         expanded = os.path.expanduser(self.CACHE_DIR)
