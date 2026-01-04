@@ -1,5 +1,6 @@
-from typing import Optional
-from pydantic import Field
+import os
+from typing_extensions import Optional, Self
+from pydantic import Field, model_validator
 from pydantic_settings import SettingsConfigDict
 
 from redteam_core.config import BaseConfig, ENV_PREFIX_VALIDATOR
@@ -24,19 +25,6 @@ class AutoUpdaterConfig(BaseConfig):
     model_config = SettingsConfigDict(env_prefix=f"{ENV_PREFIX_VALIDATOR}AUTOUPDATER_")
 
 
-class HuggingFaceConfig(BaseConfig):
-    REPO_ID: str = Field(
-        default="my_username/rt.agent-validator",
-        description="Hugging Face repository for validator updates",
-    )
-    TOKEN: Optional[str] = Field(
-        default=None,
-        description="Hugging Face token for private repository access",
-    )
-
-    model_config = SettingsConfigDict(env_prefix=f"{ENV_PREFIX_VALIDATOR}HF_")
-
-
 class ValidatorMainConfig(BaseConfig):
     WALLET_NAME: str = Field(
         default="validator", description="Name of the wallet to use for validation"
@@ -52,15 +40,20 @@ class ValidatorMainConfig(BaseConfig):
         default=True,
         description="Use centralized scoring service instead of local scoring",
     )
-    AXON_PORT: int = Field(
-        default=8091,
-        description="Port for the validator's Axon service",
-        ge=1,
-        le=65535,
+    CACHE_DIR: str = Field(
+        default="/var/lib/agent-validator/cache", description="Cache directory path"
     )
-    HUGGINGFACE: HuggingFaceConfig = Field(default_factory=HuggingFaceConfig)
     AUTOUPDATER: AutoUpdaterConfig = Field(default_factory=AutoUpdaterConfig)
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX_VALIDATOR)
+
+    @model_validator("before")
+    def validate_cache_dir(self) -> Self:
+        """Ensure cache directory exists and is writable."""
+        expanded = os.path.expanduser(self.CACHE_DIR)
+        os.makedirs(expanded, exist_ok=True)
+        if not os.access(expanded, os.W_OK):
+            raise ValueError(f"Cache directory not writable: {expanded}")
+        return self
 
 
 __all__ = ["AutoUpdaterConfig", "ValidatorMainConfig"]

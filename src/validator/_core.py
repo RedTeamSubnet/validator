@@ -63,15 +63,13 @@ class Validator(BaseValidator):
 
         # Setup storage manager and publish public hf_repo_id for storage
         self.storage_manager = StorageManager(
-            cache_dir=self.config.BITTENSOR.SUBNET.CACHE_DIR,
+            cache_dir=self.validator_config.CACHE_DIR,
             validator_request_header_fn=self.validator_request_header_fn,
-            hf_repo_id=self.validator_config.HUGGINGFACE.REPO_ID,
+            hf_repo_id="",
             sync_on_init=True,
         )
         # Commit the repo_id
-        self.commit_repo_id_to_chain(
-            hf_repo_id=self.validator_config.HUGGINGFACE.REPO_ID, max_retries=5
-        )
+        self.commit_repo_id_to_chain(hf_repo_id="", max_retries=5)
 
         self.challenge_managers: dict[str, ChallengeManager] = {}
         self.miner_managers: MinerManager = MinerManager(
@@ -791,9 +789,7 @@ class Validator(BaseValidator):
                     "Periodic commit HF repo id to chain completed successfully."
                 )
             except Exception as e:
-                bt.logging.error(
-                    f"Error in periodic commit for repo ID '{self.validator_config.HUGGINGFACE.REPO_ID}': {e}"
-                )
+                bt.logging.error(f"Error in periodic commit for repo ID : {e}")
             time.sleep(interval)
 
     # MARK: State

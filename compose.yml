@@ -7,8 +7,6 @@ services:
     environment:
       TERM: ${TERM:-xterm}
       TZ: ${TZ:-UTC}
-      HF_TOKEN: "${RT_VALIDATOR_HF_TOKEN}"
-      RT_VALIDATOR_HF_REPO: ${RT_VALIDATOR_HF_REPO}
     env_file:
       - path: .env
         required: false

@@ -36,16 +36,7 @@ fi
 main()
 {
 	echo "[INFO]: Starting agent validator..."
-	python -u -m src.validator \
-		--wallet.name "${RT_VALIDATOR_WALLET_NAME:-validator}" \
-		--wallet.path "${RT_BTCLI_WALLET_DIR:-${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}/wallets}" \
-		--wallet.hotkey "default" \
-		--subtensor.network "${RT_BT_SUBTENSOR_NETWORK:-${RT_BT_SUBTENSOR_WS_SCHEME:-ws}://${RT_BT_SUBTENSOR_HOST:-subtensor}:${RT_BT_SUBTENSOR_WS_PORT:-9944}}" \
-		--netuid "${RT_BT_SUBNET_NETUID:-2}" \
-		--validator.cache_dir "${RT_VALIDATOR_DATA_DIR:-/var/lib/agent-validator}/.cache" \
-		--validator.hf_repo_id "${RT_VALIDATOR_HF_REPO:-redteamsubnet61/agent-validator}" \
-		${_use_centralized_param} \
-		${_logging_param} || exit 2
+	python -u -m src.validator  || exit 2
 
 	echo "[OK]: Done."
 	exit 0
