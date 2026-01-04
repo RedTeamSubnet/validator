@@ -24,6 +24,19 @@ class AutoUpdaterConfig(BaseConfig):
     model_config = SettingsConfigDict(env_prefix=f"{ENV_PREFIX_VALIDATOR}AUTOUPDATER_")
 
 
+class HuggingFaceConfig(BaseConfig):
+    REPO_ID: str = Field(
+        default="my_username/rt.agent-validator",
+        description="Hugging Face repository for validator updates",
+    )
+    TOKEN: Optional[str] = Field(
+        default=None,
+        description="Hugging Face token for private repository access",
+    )
+
+    model_config = SettingsConfigDict(env_prefix=f"{ENV_PREFIX_VALIDATOR}HF_")
+
+
 class ValidatorMainConfig(BaseConfig):
     WALLET_NAME: str = Field(
         default="validator", description="Name of the wallet to use for validation"
@@ -41,6 +54,7 @@ class ValidatorMainConfig(BaseConfig):
         ge=1,
         le=65535,
     )
+    HUGGINGFACE: HuggingFaceConfig = Field(default_factory=HuggingFaceConfig)
     AUTOUPDATER: AutoUpdaterConfig = Field(default_factory=AutoUpdaterConfig)
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX_VALIDATOR)
 

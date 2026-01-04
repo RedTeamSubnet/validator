@@ -65,12 +65,12 @@ class Validator(BaseValidator):
         self.storage_manager = StorageManager(
             cache_dir=self.config.BITTENSOR.SUBNET.CACHE_DIR,
             validator_request_header_fn=self.validator_request_header_fn,
-            hf_repo_id=self.config.BITTENSOR.SUBNET.HF_REPO_ID,
+            hf_repo_id=self.validator_config.HUGGINGFACE.REPO_ID,
             sync_on_init=True,
         )
         # Commit the repo_id
         self.commit_repo_id_to_chain(
-            hf_repo_id=self.config.BITTENSOR.SUBNET.HF_REPO_ID, max_retries=5
+            hf_repo_id=self.validator_config.HUGGINGFACE.REPO_ID, max_retries=5
         )
 
         self.challenge_managers: dict[str, ChallengeManager] = {}
@@ -792,7 +792,7 @@ class Validator(BaseValidator):
                 )
             except Exception as e:
                 bt.logging.error(
-                    f"Error in periodic commit for repo ID '{self.config.BITTENSOR.SUBNET.HF_REPO_ID}': {e}"
+                    f"Error in periodic commit for repo ID '{self.validator_config.HUGGINGFACE.REPO_ID}': {e}"
                 )
             time.sleep(interval)
 
