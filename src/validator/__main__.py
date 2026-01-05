@@ -3,14 +3,10 @@
 import time
 import bittensor as bt
 from ._core import Validator
-from .utils import AutoUpdater
 
 
 # The main function parses the configuration and runs the validator.
 if __name__ == "__main__":
-    # Initialize the auto-updater
-    AutoUpdater()
-
     # Start the validator
     with Validator() as validator:
         while True:

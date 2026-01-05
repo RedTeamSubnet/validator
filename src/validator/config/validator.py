@@ -6,25 +6,6 @@ from pydantic_settings import SettingsConfigDict
 from redteam_core.config import BaseConfig, ENV_PREFIX_VALIDATOR
 
 
-class AutoUpdaterConfig(BaseConfig):
-    """
-    Validator configuration.
-
-    Environment Variables:
-        RT_VALIDATOR_UPDATE_RATE_MINUTES: Update rate in minutes (default: 60)
-        RT_VALIDATOR_UPDATE_BRANCH_NAME: Git branch for updates (default: main)
-    """
-
-    UPDATE_RATE_MINUTES: int = Field(
-        default=60, description="Update rate in minutes", ge=1
-    )
-    UPDATE_BRANCH_NAME: str = Field(
-        default="main", description="Git branch name for updates"
-    )
-
-    model_config = SettingsConfigDict(env_prefix=f"{ENV_PREFIX_VALIDATOR}AUTOUPDATER_")
-
-
 class ValidatorMainConfig(BaseConfig):
     WALLET_NAME: str = Field(
         default="validator", description="Name of the wallet to use for validation"
@@ -43,7 +24,6 @@ class ValidatorMainConfig(BaseConfig):
     CACHE_DIR: str = Field(
         default="/var/lib/agent-validator/cache", description="Cache directory path"
     )
-    AUTOUPDATER: AutoUpdaterConfig = Field(default_factory=AutoUpdaterConfig)
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX_VALIDATOR)
 
     @model_validator(mode="after")
