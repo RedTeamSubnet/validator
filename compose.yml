@@ -7,11 +7,14 @@ services:
     environment:
       TERM: ${TERM:-xterm}
       TZ: ${TZ:-UTC}
+      RT_BTCLI_WALLET_DIR: "${RT_BTCLI_WALLET_DIR}"
+      RT_VALIDATOR_WALLET_NAME: ${RT_VALIDATOR_WALLET_NAME}
+      RT_VALIDATOR_HOTKEY_NAME: ${RT_VALIDATOR_HOTKEY_NAME}
     env_file:
       - path: .env
         required: false
     volumes:
-      - "./volumes/storage/sidecar-btcli/data:/var/lib/sidecar-btcli"
-      - "./volumes/storage/agent-validator/logs:/var/log/agent-validator"
-      - "./volumes/storage/agent-validator/data:/var/lib/agent-validator"
+      - "${RT_BTCLI_WALLET_DIR}:${RT_BTCLI_WALLET_DIR}"
+      - "./volumes/storage/agent-validator/logs:${RT_VALIDATOR_LOGS_DIR:-/var/log/agent-validator}"
+      - "./volumes/storage/agent-validator/data:${RT_VALIDATOR_DATA_DIR:-/var/lib/agent-validator}"
     tty: true
