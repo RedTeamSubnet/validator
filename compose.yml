@@ -1,20 +1,4 @@
 services:
-  wud:
-    image: getwud/wud:8.1.1
-    restart: unless-stopped
-    container_name: wud
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./wud/data:/store
-    environment:
-      - WUD_WATCHER_LOCAL_WATCHBYDEFAULT=false
-      - WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
-      - WUD_WATCHER_LOCAL_WATCHATSTART=true
-      - WUD_WATCHER_LOCAL_CRON=* * * * *
-      - WUD_TRIGGER_DOCKER_LOCAL_AUTO=true
-      - WUD_TRIGGER_DOCKER_LOCAL_DRYRUN=false
-      - WUD_TRIGGER_DOCKER_LOCAL_PRUNE=true
-      - WUD_TRIGGER_DOCKER_LOCAL_THRESHOLD=minor
   agent-validator:
     image: redteamsubnet61/agent-validator:2.0.0-251224
     build:
@@ -29,14 +13,34 @@ services:
     env_file:
       - path: .env
         required: false
-    volumes:
-      - "${RT_BTCLI_WALLET_DIR}:${RT_BTCLI_WALLET_DIR}"
-      - "./volumes/storage/agent-validator/logs:${RT_VALIDATOR_LOGS_DIR:-/var/log/agent-validator}"
-      - "./volumes/storage/agent-validator/data:${RT_VALIDATOR_DATA_DIR:-/var/lib/agent-validator}"
-    network_mode: "host"
     labels:
       - 'wud.tag.transform=^(\d+\.\d+\.\d+)-\d{6}$ => $1'
       - 'wud.tag.include=^\d+\.\d+\.\d+-\d{6}$'
       - "wud.display.name=Agent Validator"
       - "wud.watch=true"
+    volumes:
+      - "${RT_BTCLI_WALLET_DIR}:${RT_BTCLI_WALLET_DIR}"
+      - "./volumes/storage/agent-validator/logs:${RT_VALIDATOR_LOGS_DIR:-/var/log/agent-validator}"
+      - "./volumes/storage/agent-validator/data:${RT_VALIDATOR_DATA_DIR:-/var/lib/agent-validator}"
+    network_mode: "host"
+    tty: true
+
+  wud:
+    image: getwud/wud:8.1.1
+    container_name: wud
+    restart: unless-stopped
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./volumes/storage/wud/data:/store"
+    environment:
+      TERM: ${TERM:-xterm}
+      TZ: ${TZ:-UTC}
+      WUD_WATCHER_LOCAL_WATCHBYDEFAULT: false
+      WUD_WATCHER_LOCAL_SOCKET: "/var/run/docker.sock"
+      WUD_WATCHER_LOCAL_WATCHATSTART: true
+      WUD_WATCHER_LOCAL_CRON: "10 * * * *"
+      WUD_TRIGGER_DOCKER_LOCAL_AUTO: true
+      WUD_TRIGGER_DOCKER_LOCAL_DRYRUN: false
+      WUD_TRIGGER_DOCKER_LOCAL_PRUNE: true
+      WUD_TRIGGER_DOCKER_LOCAL_THRESHOLD: minor
     tty: true
