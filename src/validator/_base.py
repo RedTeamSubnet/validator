@@ -141,7 +141,7 @@ class BaseValidator(ABC):
             bt_config.wallet = bt.Config()
 
         bt_config.wallet.path = str(
-            os.getenv("RT_BTCLI_WALLET_DIR", "~/.bittensor/wallets")
+            os.getenv("RT_BTCLI_WALLET_DIR", self.validator_config.WALLET_DIR)
         )
         bt_config.wallet.name = self.validator_config.WALLET_NAME
         bt_config.wallet.hotkey = self.validator_config.HOTKEY_NAME
