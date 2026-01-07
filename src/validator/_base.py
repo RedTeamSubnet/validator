@@ -140,9 +140,7 @@ class BaseValidator(ABC):
         if bt_config.wallet is None:
             bt_config.wallet = bt.Config()
 
-        bt_config.wallet.path = str(
-            os.getenv("RT_BTCLI_WALLET_DIR", self.validator_config.WALLET_DIR)
-        )
+        bt_config.wallet.path = self.validator_config.WALLET_DIR
         bt_config.wallet.name = self.validator_config.WALLET_NAME
         bt_config.wallet.hotkey = self.validator_config.HOTKEY_NAME
 

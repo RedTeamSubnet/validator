@@ -9,7 +9,7 @@ else:
 from pydantic import Field, model_validator, field_validator
 from pydantic_settings import SettingsConfigDict
 
-from redteam_core.config import BaseConfig, ENV_PREFIX_VALIDATOR
+from redteam_core.config import BaseConfig, ENV_PREFIX_VALIDATOR, ENV_PREFIX
 
 
 class ValidatorMainConfig(BaseConfig):
@@ -39,9 +39,14 @@ class ValidatorMainConfig(BaseConfig):
         default="{data_dir}/cache", min_length=3, description="Cache directory path."
     )
 
-    @field_validator("WALLET_DIR", mode="after")
+    @field_validator("WALLET_DIR")
     @classmethod
-    def _validate_wallet_dir(cls, val: str) -> str:
+    def _check_wallet_dir(cls, val: str) -> str:
+
+        _wallet_dir_env = f"{ENV_PREFIX}BTCLI_WALLET_DIR"
+        if _wallet_dir_env in os.environ:
+            val = os.getenv(_wallet_dir_env, "")
+
         if "~" in val:
             val = os.path.expanduser(val)
 
