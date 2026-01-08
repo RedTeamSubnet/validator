@@ -1,7 +1,61 @@
 services:
+  subtensor:
+    image: ghcr.io/opentensor/subtensor-localnet:v2.0.11
+    restart: unless-stopped
+    environment:
+      TERM: ${TERM:-xterm}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - "./volumes/storage/server-subtensor/data:/tmp"
+    # deploy:
+    #   replicas: 0
+    #   resources:
+    #     limits:
+    #       cpus: "1.0"
+    #       memory: 1G
+    ports:
+      - "${RT_BT_SUBTENSOR_WS_PORT:-9944}:9944"
+    #   - "9945:9945"
+    #   - "30334:30334"
+    #   - "30335:30335"
+    command: ["False", "--no-purge"]
+    tty: true
+
+  sidecar-btcli:
+    image: redteamsubnet61/sidecar-btcli:latest
+    build:
+      context: ./volumes/src/sidecar-btcli
+    depends_on:
+      - subtensor
+    restart: unless-stopped
+    environment:
+      TERM: ${TERM:-xterm}
+      TZ: ${TZ:-UTC}
+      RT_BT_SUBTENSOR_NETWORK: "ws://subtensor:9944"
+      RT_BT_SUBNET_NETUID: ${RT_BT_SUBNET_NETUID:-2}
+      RT_BTCLI_DATA_DIR: ${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}
+    volumes:
+      - "./volumes/storage/sidecar-btcli/data:${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}"
+      - "./volumes/.vscode-server:/home/rt-user/.vscode-server"
+    # deploy:
+    #   replicas: 0
+    #   resources:
+    #     limits:
+    #       cpus: "0.25"
+    #       memory: 256M
+    # command: ["/bin/bash"]
+    tty: true
+
   agent-validator:
     image: redteamsubnet61/agent-validator:latest
-    volumes:
+    depends_on:
+      - subtensor
+      - sidecar-btcli
+    environment:
+      RT_BT_SUBTENSOR_NETWORK: "ws://localhost:9944"
+      RT_BTCLI_DATA_DIR: "${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}"
+      RT_BTCLI_WALLET_DIR: "${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}/wallets"
+    volumes: !override
       - "./volumes/storage/sidecar-btcli/data:${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}"
       - "./volumes/storage/agent-validator/logs:${RT_VALIDATOR_LOGS_DIR:-/var/log/agent-validator}"
       - "./volumes/storage/agent-validator/data:${RT_VALIDATOR_DATA_DIR:-/var/lib/agent-validator}"

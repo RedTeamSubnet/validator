@@ -7,21 +7,22 @@ services:
     environment:
       TERM: ${TERM:-xterm}
       TZ: ${TZ:-UTC}
-      RT_BTCLI_WALLET_DIR: "${RT_BTCLI_WALLET_DIR}"
-      RT_VALIDATOR_WALLET_NAME: ${RT_VALIDATOR_WALLET_NAME}
-      RT_VALIDATOR_HOTKEY_NAME: ${RT_VALIDATOR_HOTKEY_NAME}
+      RT_BTCLI_WALLET_DIR: "${RT_BTCLI_WALLET_DIR:?error}"
+      RT_VALIDATOR_WALLET_NAME: ${RT_VALIDATOR_WALLET_NAME:?error}
+      RT_VALIDATOR_HOTKEY_NAME: ${RT_VALIDATOR_HOTKEY_NAME:?error}
     env_file:
       - path: .env
         required: false
     labels:
       - 'wud.tag.transform=^(\d+\.\d+\.\d+)-\d{6}$ => $1'
       - 'wud.tag.include=^\d+\.\d+\.\d+-\d{6}$'
+      - 'wud.tag.exclude=^latest$'
       - "wud.display.name=Agent Validator"
       - "wud.watch=true"
     volumes:
-      - "${RT_BTCLI_WALLET_DIR}:${RT_BTCLI_WALLET_DIR}"
-      - "./volumes/storage/agent-validator/logs:${RT_VALIDATOR_LOGS_DIR:-/var/log/agent-validator}"
-      - "./volumes/storage/agent-validator/data:${RT_VALIDATOR_DATA_DIR:-/var/lib/agent-validator}"
+      - "${RT_BTCLI_WALLET_DIR:?error}:${RT_BTCLI_WALLET_DIR:?error}"
+      - "./volumes/storage/agent-validator/logs:/var/log/agent-validator"
+      - "./volumes/storage/agent-validator/data:/var/lib/agent-validator"
     network_mode: "host"
     tty: true
 
