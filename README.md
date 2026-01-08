@@ -79,7 +79,7 @@ git clone git@github.com:RedTeamSubnet/validator.git && \
 
 [NOTE] Please, check **[environment variables](#-environment-variables)** section for more details.
 
-**[IMPORTANT]** Make sure to change the wallet directory and wallet name variables to your own values in the **`.env`** file:
+**[IMPORTANT]** Make sure to change the **wallet directory and wallet name variables** to your own values in the **`.env`** file:
 
 ```sh
 # Copy '.env.example' file to '.env' file:
