@@ -12,7 +12,7 @@ This repository is for validator of RedTeam subnet.
 
 ---
 
-## 🐤 Getting Started
+## Getting Started
 
 ### 1. 🚧 Prerequisites
 
@@ -108,7 +108,7 @@ docker compose up -d --remove-orphans --force-recreate && \
     docker compose logs -f --tail 100
 ```
 
-### (OPTIONAL) 🛑 Stop the server
+### (OPTIONAL) 🛑 Stop validator node
 
 ```sh
 # Stop docker compose:
