@@ -1,11 +1,11 @@
 # RedTeam subnet - Validator (Agent)
 
-This repository is for validator of RedTeam subnet.
+This repository is for validator of RedTeam subnet. it is focused on running validator node in an independent, easy to configure, dockerized way with docker compose support. Additionally, it includes additional helper container to automatically update and restart validator image when new version is released.
 
 ## ✨ Features
 
 - Validator node
-- Independent
+- Automatic updates
 - Easy configuration
 - Dockerized setup
 - Docker Compose support
@@ -18,26 +18,21 @@ This repository is for validator of RedTeam subnet.
 
 - Prepare validator wallet (skip if you already have one):
     - Install **Bittensor CLI**:
-        - <https://docs.learnbittensor.org/getting-started/install-btcli>
-        - <https://docs.learnbittensor.org/btcli>
-    - Create validator wallet:
-        - <https://docs.learnbittensor.org/keys/working-with-keys>
-        - <https://docs.learnbittensor.org/btcli/btcli-permissions>
+        - [Installing Bittensor CLI](https://docs.learnbittensor.org/getting-started/install-btcli)
+        - [Bittensor CLI: `btcli` Reference Document](https://docs.learnbittensor.org/btcli)
+    - Create miner wallet:
+        - [Working with Keys](https://docs.learnbittensor.org/keys/working-with-keys)
+        - [Bittensor CLI Permissions](https://docs.learnbittensor.org/btcli/btcli-permissions)
     - Stake TAO with validator wallet on RedTeam subnet:
-        - <https://docs.learnbittensor.org/staking-and-delegation/stakers-btcli-guide>
-        - <https://docs.learnbittensor.org/staking-and-delegation/managing-stake-btcli>
+        - [Staker's Guide to `BTCLI`](https://docs.learnbittensor.org/staking-and-delegation/stakers-btcli-guide)
+        - [Managing stake with `btcli`](https://docs.learnbittensor.org/staking-and-delegation/managing-stake-btcli)
     - Register validator wallet to RedTeam subnet:
-        - <https://docs.learnbittensor.org/validators>
-        - <https://docs.learnbittensor.org/validators/validators-btcli-guide>
-        - <https://docs.learnbittensor.org/learn/fees>
+        - [Validating in Bittensor](https://docs.learnbittensor.org/validators)
+        - [Validator's Guide to `BTCLI`](https://docs.learnbittensor.org/validators/validators-btcli-guide)
+        - [Transaction Fees in Bittensor](https://docs.learnbittensor.org/learn/fees)
 - Install [**docker** and **docker compose**](https://docs.docker.com/engine/install)
     - Docker [intstallation script](https://github.com/docker/docker-install)
     - Docker [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall)
-
-[OPTIONAL] For **DEVELOPMENT** environment:
-
-- Install [**git**](https://git-scm.com/downloads)
-- Setup an [**SSH key**](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)
 
 ---
 
@@ -53,7 +48,7 @@ mkdir -pv ~/workspaces/projects
 cd ~/workspaces/projects
 ```
 
-**2.2.** Follow one of the below options **[A]**, **[B]** or **[C]**:
+**2.2.** Follow one of the below options **[A]** or **[B]**:
 
 **OPTION A.** Clone the repository:
 
@@ -62,14 +57,7 @@ git clone https://github.com/RedTeamSubnet/validator.git && \
     cd validator
 ```
 
-**OPTION B.** Clone the repository (for **DEVELOPMENT**: git + ssh key):
-
-```sh
-git clone git@github.com:RedTeamSubnet/validator.git && \
-    cd validator
-```
-
-**OPTION C.** Download source code:
+**OPTION B.** Download source code:
 
 1. Download archived **zip** or **tar.gz** file from [**releases**](https://github.com/RedTeamSubnet/validator/releases).
 2. Extract it into the projects directory.
@@ -108,17 +96,6 @@ docker compose up -d --remove-orphans --force-recreate && \
     docker compose logs -f --tail 100
 ```
 
-### (OPTIONAL) 🛑 Stop validator node
-
-```sh
-# Stop docker compose:
-./compose.sh stop
-# Or:
-docker compose down --remove-orphans
-```
-
-👍
-
 ---
 
 ## ⚙️ Configuration
@@ -151,19 +128,6 @@ RT_VALIDATOR_HOTKEY_NAME="default" # !!! CHANGE THIS TO REAL VALIDATOR HOTKEY NA
 # RT_VALIDATOR_LOGS_DIR="/var/log/agent-validator"
 # RT_VALIDATOR_DATA_DIR="/var/lib/agent-validator"
 # RT_VALIDATOR_USE_CENTRALIZED_SCORING=true
-```
-
-## 🏗️ Build Docker Image
-
-Before building the docker image, make sure you have installed **docker** and **docker compose**.
-
-To build the docker image, run the following command:
-
-```sh
-# Build docker image:
-./scripts/build.sh
-# Or:
-docker compose build
 ```
 
 ## 📚 Documentation
