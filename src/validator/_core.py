@@ -60,11 +60,9 @@ class Validator(BaseValidator):
         # Start the Bittensor log listener
         start_bittensor_log_listener(api_key=storage_api_key)
 
-        # Setup storage manager and publish public hf_repo_id for storage
         self.storage_manager = StorageManager(
             cache_dir=self.validator_config.CACHE_DIR,
             validator_request_header_fn=self.validator_request_header_fn,
-            hf_repo_id="",
             sync_on_init=True,
         )
         # Commit the repo_id
@@ -694,7 +692,13 @@ class Validator(BaseValidator):
             )
             for _, miner_challenge_commits in self.miner_commits.items():
                 for challenge_name, commit in miner_challenge_commits.items():
-                    miner_commits.setdefault(challenge_name, []).append(commit)
+                    if (
+                        not commit.docker_hub_id
+                        in self.challenge_managers[
+                            challenge_name
+                        ].get_unique_scored_docker_hub_ids()
+                    ):
+                        miner_commits.setdefault(challenge_name, []).append(commit)
 
         data_to_store: list[MinerChallengeCommit] = [
             commit
