@@ -61,7 +61,6 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/agent-validator:cache-latest
           cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/agent-validator:cache-latest,mode=max
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/agent-validator:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/agent-validator:${{ env._VERSION }}
           push: true
       - name: Trigger release
