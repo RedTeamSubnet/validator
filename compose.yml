@@ -1,6 +1,6 @@
 services:
   agent-validator:
-    image: redteamsubnet61/agent-validator:2.0.1-260107
+    image: redteamsubnet61/agent-validator:2.1.0-260114
     build:
       context: .
     restart: unless-stopped
@@ -25,7 +25,6 @@ services:
       - "./volumes/storage/agent-validator/data:/var/lib/agent-validator"
     network_mode: "host"
     tty: true
-
   wud:
     image: getwud/wud:8.1.1
     container_name: wud
