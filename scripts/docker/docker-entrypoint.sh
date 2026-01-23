@@ -47,18 +47,18 @@ _run()
 
 	sleep 5
 	echo "[INFO]: Starting ${RT_VALIDATOR_SLUG}..."
-	exec sg docker "exec python -u -m validator"
+	exec sg docker "exec python -u -m validator" || exit 2
 
 	exit 0
 }
 
-_fix_root_wallet()
+_fix_wallet_parent_dirs()
 {
-	if [ "${_wallet_dir#/root/}" != "${_wallet_dir}" ]; then
-		echo "[WARN]: Wallet dir is under /root ('${_wallet_dir}'), temporarily fixing permissions to allow validator user access, but this is not recommended!"
-
-		sudo chmod -c 755 /root || exit 2
-	fi
+	local _parent_dir="${_wallet_dir}"
+	while [ "${_parent_dir}" != "/" ]; do
+		sudo chmod -c 775 "${_parent_dir}" || exit 2
+		_parent_dir="$(dirname "${_parent_dir}")"
+	done
 }
 
 
@@ -66,9 +66,8 @@ main()
 {
 	umask 0002 || exit 2
 
-	_fix_root_wallet
-
-	sudo find "${_wallet_dir}" \
+	_fix_wallet_parent_dirs
+	find "${_wallet_dir}" \
 		"${RT_HOME_DIR}" \
 		"${RT_VALIDATOR_CONFIGS_DIR}" \
 		"${RT_VALIDATOR_DATA_DIR}" \
