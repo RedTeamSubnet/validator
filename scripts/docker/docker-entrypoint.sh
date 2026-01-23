@@ -4,11 +4,14 @@ set -euo pipefail
 
 echo "[INFO]: Running '${RT_VALIDATOR_SLUG}' docker-entrypoint.sh..."
 
+
+_wallet_dir="${RT_BTCLI_WALLET_DIR:-${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}/wallets}"
+
 _run()
 {
 	local _i=0
 	while true; do
-		if [ -d "${RT_BTCLI_WALLET_DIR:-${RT_BTCLI_DATA_DIR:-/var/lib/sidecar-btcli}/wallets}" ]; then
+		if [ -d "${_wallet_dir}" ]; then
 			break
 		fi
 
@@ -42,23 +45,20 @@ _run()
 		done
 	fi
 
-	local _use_centralized_param=""
-	if [ "${RT_VALIDATOR_USE_CENTRALIZED:-}" = "true" ]; then
-		_use_centralized_param="--validator.use_centralized_scoring"
-	fi
-
-	local _logging_param=""
-	if [ "${RT_VALIDATOR_LOG_LEVEL:-}" = "debug" ]; then
-		_logging_param="--logging.debug"
-	elif [ "${RT_VALIDATOR_LOG_LEVEL:-}" = "trace" ]; then
-		_logging_param="--logging.trace"
-	fi
-
-	sleep 7
+	sleep 5
 	echo "[INFO]: Starting ${RT_VALIDATOR_SLUG}..."
 	exec sg docker "exec python -u -m validator"
 
 	exit 0
+}
+
+_fix_root_wallet()
+{
+	if [ "${_wallet_dir#/root/}" != "${_wallet_dir}" ]; then
+		echo "[WARN]: Wallet dir is under /root ('${_wallet_dir}'), temporarily fixing permissions to allow validator user access, but this is not recommended!"
+
+		sudo chmod -c 755 /root || exit 2
+	fi
 }
 
 
@@ -66,7 +66,10 @@ main()
 {
 	umask 0002 || exit 2
 
-	find "${RT_HOME_DIR}" \
+	_fix_root_wallet
+
+	sudo find "${_wallet_dir}" \
+		"${RT_HOME_DIR}" \
 		"${RT_VALIDATOR_CONFIGS_DIR}" \
 		"${RT_VALIDATOR_DATA_DIR}" \
 		"${RT_VALIDATOR_LOGS_DIR}" \
