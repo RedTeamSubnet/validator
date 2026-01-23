@@ -6,6 +6,17 @@ hide:
 
 # 📌 Release Notes
 
+## v2.1.1-260123 (2026-01-23)
+
+<!-- Release notes generated using configuration in .github/release.yml at v2.1.1-260123 -->
+
+## What's Changed
+### 🐛 Fixes
+* fix: fixed wallet dir is under /root user permission error by @bybatkhuu in https://github.com/RedTeamSubnet/validator/pull/3
+
+
+**Full Changelog**: https://github.com/RedTeamSubnet/validator/compare/v2.1.0-260114...v2.1.1-260123
+
 ## v2.1.0-260114 (2026-01-14)
 
 <!-- Release notes generated using configuration in .github/release.yml at v2.1.0-260114 -->
