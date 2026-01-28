@@ -452,15 +452,6 @@ class Validator(BaseValidator):
                 challenge_name=challenge_name, scored_commits=scored_commits
             )
 
-            # Update challenge manager with ALL scored commits
-            if scored_commits:
-                self.challenge_managers[challenge_name].update_miner_scores(
-                    scored_commits
-                )
-                bt.logging.success(
-                    f"[CENTRALIZED SCORING] Updated scores for challenge: {challenge_name}"
-                )
-
             return scored_commits
 
         except Exception:
@@ -877,7 +868,7 @@ class Validator(BaseValidator):
             for uid, commits in commits_by_uid.items():
                 latest = max(
                     commits,
-                    key=lambda x: (x.scored_timestamp or 0, x.commit_timestamp or 0),
+                    key=lambda x: x.scored_timestamp or 0,
                 )
                 latest.remove_redundant_logs()
                 latest_commits.append(latest)
@@ -895,6 +886,9 @@ class Validator(BaseValidator):
             # Push latest per UID into challenge manager's miner_states
             if latest_commits and challenge_name in self.challenge_managers:
                 self.challenge_managers[challenge_name].update_miner_infos(
+                    latest_commits
+                )
+                self.challenge_managers[challenge_name].update_miner_scores(
                     latest_commits
                 )
 
