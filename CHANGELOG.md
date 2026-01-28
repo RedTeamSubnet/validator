@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.1.2-260128 (2026-01-28)
+
+<!-- Release notes generated using configuration in .github/release.yml at v2.1.2-260128 -->
+
+## What's Changed
+### 📦 Dependencies
+* fix: update redteam_core dependency to version v4.0.1 in requirements… by @bybatkhuu in https://github.com/RedTeamSubnet/validator/pull/4
+
+
+**Full Changelog**: https://github.com/RedTeamSubnet/validator/compare/v2.1.1-260123...v2.1.2-260128
+
 ## v2.1.1-260123 (2026-01-23)
 
 <!-- Release notes generated using configuration in .github/release.yml at v2.1.1-260123 -->
