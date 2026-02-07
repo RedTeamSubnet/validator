@@ -437,6 +437,7 @@ class Validator(BaseValidator):
                     # Only include commits that have been scored (have scoring_logs)
                     if validated_commit.scoring_logs:
                         validated_commit.remove_redundant_logs()
+                        validated_commit.remove_lower_than_highest_score()
                         scored_commits.append(validated_commit)
 
                 except Exception as e:
@@ -872,6 +873,7 @@ class Validator(BaseValidator):
                     key=lambda x: x.scored_timestamp or 0,
                 )
                 latest.remove_redundant_logs()
+                latest.remove_lower_than_highest_score()
                 latest_commits.append(latest)
 
                 # Update miner_commits map
