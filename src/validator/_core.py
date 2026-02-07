@@ -5,6 +5,7 @@ import datetime
 import traceback
 from copy import deepcopy
 
+
 import requests
 import numpy as np
 import bittensor as bt
@@ -883,13 +884,15 @@ class Validator(BaseValidator):
                 ):
                     self.miner_commits[key][challenge_name] = latest
 
-            # Push latest per UID into challenge manager's miner_states
+            scored_commits_sorted_by_timestamp = sorted(
+                scored_commits, key=lambda x: x.scored_timestamp or 0
+            )
             if latest_commits and challenge_name in self.challenge_managers:
                 self.challenge_managers[challenge_name].update_miner_infos(
                     latest_commits
                 )
                 self.challenge_managers[challenge_name].update_miner_scores(
-                    latest_commits
+                    scored_commits_sorted_by_timestamp
                 )
 
         except Exception as e:
