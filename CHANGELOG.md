@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.2.0-260214 (2026-02-14)
+
+<!-- Release notes generated using configuration in .github/release.yml at v2.2.0-260214 -->
+
+## What's Changed
+### 💬 Other
+* Refactoring & CI updates by @aliyuldashev in https://github.com/RedTeamSubnet/validator/pull/5
+
+## New Contributors
+* @aliyuldashev made their first contribution in https://github.com/RedTeamSubnet/validator/pull/5
+
+**Full Changelog**: https://github.com/RedTeamSubnet/validator/compare/v2.1.2-260128...v2.2.0-260214
+
 ## v2.1.2-260128 (2026-01-28)
 
 <!-- Release notes generated using configuration in .github/release.yml at v2.1.2-260128 -->
