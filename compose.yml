@@ -26,7 +26,7 @@ services:
     network_mode: "host"
     tty: true
   wud:
-    image: getwud/wud:8.1.1
+    image: getwud/wud:8.2.1
     container_name: wud
     restart: unless-stopped
     volumes:
