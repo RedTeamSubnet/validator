@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.2-260226 (2026-02-26)
+
+<!-- Release notes generated using configuration in .github/release.yml at v2.2.2-260226 -->
+
+
+
+**Full Changelog**: https://github.com/RedTeamSubnet/validator/compare/v2.2.1-260226...v2.2.2-260226
+
 ## v2.2.1-260226 (2026-02-26)
 
 <!-- Release notes generated using configuration in .github/release.yml at v2.2.1-260226 -->
