@@ -6,6 +6,17 @@ hide:
 
 # 📌 Release Notes
 
+## v2.3.0-260311 (2026-03-11)
+
+<!-- Release notes generated using configuration in .github/release.yml at v2.3.0-260311 -->
+
+## What's Changed
+### ✨ Features
+* Updating the Reveal Interval by @aliyuldashev in https://github.com/RedTeamSubnet/validator/pull/9
+
+
+**Full Changelog**: https://github.com/RedTeamSubnet/validator/compare/v2.2.2-260226...v2.3.0-260311
+
 ## v2.2.2-260226 (2026-02-26)
 
 <!-- Release notes generated using configuration in .github/release.yml at v2.2.2-260226 -->
