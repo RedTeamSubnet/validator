@@ -81,6 +81,9 @@ class Validator(BaseValidator):
             {}
         )  # {(uid, hotkey): {challenge_name: MinerCommit}}
         self.scoring_dates: list[str] = []
+        self.miner_submission_counts: dict[str, dict[str, int]] = (
+            {}
+        )  # {hotkey: {date: count}}
         self._init_validator_state()
 
     # MARK: Initialization and Setup
@@ -211,6 +214,7 @@ class Validator(BaseValidator):
             self.forward_local_scoring(revealed_commits)
 
         # Store results
+        self._cleanup_old_submission_counts()
         self._store_miner_commits()
         self._store_validator_state()
 
@@ -550,19 +554,37 @@ class Validator(BaseValidator):
                 )
                 # Update miner commit data if it's new
                 if encrypted_commit != current_miner_challenge_commit.encrypted_commit:
-                    # Create a completely new commit object for new submissions
-                    new_commit = MinerChallengeCommit(
-                        miner_uid=uid,
-                        miner_hotkey=hotkey,
-                        challenge_name=challenge_name,
-                        commit_timestamp=time.time(),
-                        encrypted_commit=encrypted_commit,
-                        key=keys.get(challenge_name),
+                    # Enforce 2 submissions per day limit
+                    today = datetime.datetime.now(datetime.timezone.utc).strftime(
+                        "%Y-%m-%d"
                     )
-                    # Update miner commit
-                    this_miner_commit[challenge_name] = (
-                        current_miner_challenge_commit
-                    ) = new_commit
+                    miner_history = self.miner_submission_counts.setdefault(hotkey, {})
+                    submission_count = miner_history.get(f"{challenge_name}_{today}", 0)
+
+                    if submission_count >= 2:
+                        bt.logging.warning(
+                            f"[SUBMISSION LIMIT] Miner {hotkey} has reached the daily limit of 2 submissions today ({today}). "
+                            f"Skipping new submission for challenge {challenge_name}."
+                        )
+                    else:
+                        # Increment submission count for today
+                        miner_history[f"{challenge_name}_{today}"] = (
+                            submission_count + 1
+                        )
+
+                        # Create a completely new commit object for new submissions
+                        new_commit = MinerChallengeCommit(
+                            miner_uid=uid,
+                            miner_hotkey=hotkey,
+                            challenge_name=challenge_name,
+                            commit_timestamp=time.time(),
+                            encrypted_commit=encrypted_commit,
+                            key=keys.get(challenge_name),
+                        )
+                        # Update miner commit
+                        this_miner_commit[challenge_name] = (
+                            current_miner_challenge_commit
+                        ) = new_commit
                 elif keys.get(challenge_name):
                     current_miner_challenge_commit.key = keys.get(challenge_name)
 
@@ -811,6 +833,7 @@ class Validator(BaseValidator):
             "validator_hotkey": self.wallet.hotkey.ss58_address,
             "challenge_managers": challenge_managers,
             "scoring_dates": self.scoring_dates,
+            "miner_submission_counts": self.miner_submission_counts,
         }
         return state
 
@@ -824,6 +847,9 @@ class Validator(BaseValidator):
         """
         # Load scoring dates
         self.scoring_dates = state.get("scoring_dates", [])
+
+        # Load miner submission counts
+        self.miner_submission_counts = state.get("miner_submission_counts", {})
 
         # Load challenge managers state using their load_state class method
         for challenge_name, manager_state in state.get(
@@ -846,6 +872,25 @@ class Validator(BaseValidator):
                     self.miner_commits.setdefault(
                         (miner_state.miner_uid, miner_state.miner_hotkey), {}
                     )[challenge_name] = miner_state.latest_commit
+
+    def _cleanup_old_submission_counts(self) -> None:
+        """
+        Cleanup old submission counts to prevent memory growth.
+        Keeps only submission counts from the last 7 days.
+        """
+        cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=7
+        )
+        cutoff_str = cutoff_date.strftime("%Y-%m-%d")
+
+        for hotkey, history in list(self.miner_submission_counts.items()):
+            cleaned_history = {
+                date: count for date, count in history.items() if date >= cutoff_str
+            }
+            if cleaned_history:
+                self.miner_submission_counts[hotkey] = cleaned_history
+            else:
+                self.miner_submission_counts.pop(hotkey, None)
 
     def _sync_state_from_scored_commits(
         self, challenge_name: str, scored_commits: list[MinerChallengeCommit]
