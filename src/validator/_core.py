@@ -561,7 +561,7 @@ class Validator(BaseValidator):
                         "%Y-%m-%d"
                     )
                     miner_history = self.miner_submission_counts.setdefault(hotkey, {})
-                    submission_count = miner_history.get(today, 0)
+                    submission_count = miner_history.get(f"{challenge_name}_{today}", 0)
 
                     if submission_count >= 2:
                         bt.logging.warning(
@@ -570,7 +570,9 @@ class Validator(BaseValidator):
                         )
                     else:
                         # Increment submission count for today
-                        miner_history[today] = submission_count + 1
+                        miner_history[f"{challenge_name}_{today}"] = (
+                            submission_count + 1
+                        )
 
                         # Create a completely new commit object for new submissions
                         new_commit = MinerChallengeCommit(
