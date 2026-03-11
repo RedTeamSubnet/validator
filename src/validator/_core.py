@@ -214,11 +214,9 @@ class Validator(BaseValidator):
             self.forward_local_scoring(revealed_commits)
 
         # Store results
+        self._cleanup_old_submission_counts()
         self._store_miner_commits()
         self._store_validator_state()
-
-        # Cleanup old submission counts (keep only last 7 days)
-        self._cleanup_old_submission_counts()
 
     def forward_centralized_scoring(
         self, revealed_commits: dict[str, list[MinerChallengeCommit]]
