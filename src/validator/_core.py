@@ -165,6 +165,26 @@ class Validator(BaseValidator):
 
         bt.logging.success("[INIT] Validator state initialization completed")
 
+    def _fetch_miners_docker_info_from_storage(self) -> dict[str, dict]:
+        bt.logging.info(
+            "[FETCH MINER DOCKER INFO] Fetching miner docker info from storage"
+        )
+
+        endpoint = f"{self.config.STORAGE_API_URL}/miner-docker-usernames"
+        header = self.validator_request_header_fn({})
+
+        try:
+            response = requests.get(endpoint, headers=header)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("data", {})
+
+        except Exception as e:
+            bt.logging.error(
+                f"[FETCH MINER DOCKER INFO] Failed to fetch miner docker info: {traceback.format_exc()}"
+            )
+            return {}
+
     def forward(self):
         """
         Execute the main validation cycle for all active challenges.
@@ -474,8 +494,8 @@ class Validator(BaseValidator):
         n_uids = int(self.metagraph.n)
         uids = list(range(n_uids))
         weights = np.zeros(len(uids))
-
-        scores = self.miner_managers.get_onchain_scores(n_uids)
+        self.docker_usernames = self._fetch_miners_docker_info_from_storage()
+        scores = self.miner_managers.get_onchain_scores(n_uids, self.docker_usernames)
         bt.logging.debug(f"[SET WEIGHTS] scores: {scores}")
         weights = scores
         (
