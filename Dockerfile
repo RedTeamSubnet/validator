@@ -82,6 +82,7 @@ RUN --mount=type=secret,id=HASH_PASSWORD \
 	apt-get update --fix-missing -o Acquire::CompressionTypes::Order::=gz && \
 	apt-get install -y --no-install-recommends \
 		sudo \
+		gosu \
 		locales \
 		tzdata \
 		procps \
@@ -150,6 +151,6 @@ COPY --chown=${UID}:${GID} --chmod=770 ./scripts/docker/*.sh /usr/local/bin/
 
 # VOLUME ["${RT_VALIDATOR_DATA_DIR}"]
 
-USER ${UID}:${GID}
+# USER ${UID}:${GID}
 
 ENTRYPOINT ["docker-entrypoint.sh"]

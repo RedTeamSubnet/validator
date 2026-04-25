@@ -47,7 +47,7 @@ _run()
 
 	sleep 5
 	echo "[INFO]: Starting ${RT_VALIDATOR_SLUG}..."
-	exec sg docker "exec python -u -m validator" || exit 2
+	exec gosu "${USER}:${GROUP}" sg docker "exec python -u -m validator" || exit 2
 
 	exit 0
 }
@@ -117,7 +117,7 @@ main()
 	find "${RT_VALIDATOR_LOGS_DIR}" "${RT_VALIDATOR_TMP_DIR}" -type f -exec sudo chmod 664 {} + || exit 2
 	find "${RT_VALIDATOR_LOGS_DIR}" "${RT_VALIDATOR_TMP_DIR}" -type d -exec sudo chmod +s {} + || exit 2
 
-	echo "${USER} ALL=(ALL) ALL" | sudo tee -a "/etc/sudoers.d/${USER}" > /dev/null || exit 2
+	# echo "${USER} ALL=(ALL) ALL" | sudo tee -a "/etc/sudoers.d/${USER}" > /dev/null || exit 2
 	echo ""
 
 	## Parsing input:
