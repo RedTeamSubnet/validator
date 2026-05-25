@@ -458,6 +458,9 @@ class Validator(BaseValidator):
                     if validated_commit.scoring_logs:
                         validated_commit.remove_redundant_logs()
                         validated_commit.remove_lower_than_highest_score()
+                        validated_commit = self._sanitize_commit_for_validator_state(
+                            validated_commit
+                        )
                         scored_commits.append(validated_commit)
 
                 except Exception as e:
@@ -808,7 +811,34 @@ class Validator(BaseValidator):
                 bt.logging.error(f"Error in periodic commit for repo ID : {e}")
             time.sleep(interval)
 
-    # MARK: State
+    def _sanitize_commit_for_validator_state(
+        self, commit: MinerChallengeCommit
+    ) -> MinerChallengeCommit:
+        """Keep only compact score/similarity data for validator state."""
+        compact_commit = commit.state_view()
+
+        compact_commit.scoring_logs = [
+            log.state_view() for log in compact_commit.scoring_logs
+        ]
+
+        compact_comparison_logs = {}
+        for ref_key, logs in compact_commit.comparison_logs.items():
+            if not logs:
+                continue
+            max_log = max(
+                logs,
+                key=lambda log: (
+                    log.similarity_score
+                    if log.similarity_score is not None
+                    else float("-inf")
+                ),
+            )
+            compact_comparison_logs[ref_key] = [max_log.state_view()]
+        compact_commit.comparison_logs = compact_comparison_logs
+
+        compact_commit.key = None
+        return compact_commit
+
     def export_state(self, public_view: bool = False) -> dict:
         """
         Exports the current state of the Validator to a serializable dictionary.
