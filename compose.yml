@@ -1,6 +1,6 @@
 services:
   agent-validator:
-    image: redteamsubnet61/agent-validator:2.3.9-260511
+    image: redteamsubnet61/agent-validator:2.3.10-260525
     build:
       context: .
     restart: unless-stopped
