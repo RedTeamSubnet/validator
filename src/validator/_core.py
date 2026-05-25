@@ -166,8 +166,8 @@ class Validator(BaseValidator):
         bt.logging.info(
             "[FETCH MINER DOCKER INFO] Fetching miner docker info from storage"
         )
-
-        endpoint = f"{self.config.STORAGE_API_URL}/miner-docker-usernames"
+        storage_url = str(self.config.STORAGE_API_URL).rstrip("/")
+        endpoint = f"{storage_url}/miner-docker-usernames"
         header = self.validator_request_header_fn({})
 
         try:
@@ -423,7 +423,8 @@ class Validator(BaseValidator):
             )
 
             # Query Storage API
-            endpoint = f"{self.config.STORAGE_API_URL}/fetch-rewarder-challenge-state"
+            storage_url = str(self.config.STORAGE_API_URL).rstrip("/")
+            endpoint = f"{storage_url}/fetch-rewarder-challenge-state"
             data = {"challenge_name": challenge_name}
 
             response = requests.post(
@@ -782,7 +783,8 @@ class Validator(BaseValidator):
         """
         Retrieves the storage API key from the config.
         """
-        endpoint = f"{self.config.STORAGE_API_URL}/get-api-key"
+        storage_url = str(self.config.STORAGE_API_URL).rstrip("/")
+        endpoint = f"{storage_url}/get-api-key"
         data = {
             "validator_uid": self.uid,
             "validator_hotkey": self.metagraph.hotkeys[self.uid],
