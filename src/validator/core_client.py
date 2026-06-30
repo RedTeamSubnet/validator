@@ -230,12 +230,21 @@ class RestCoreClient:
     def observe_commits(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         if not items:
             return {"accepted": [], "errors": []}
-        body = self._request(
-            "POST",
-            "/validators/commits/observations/batch",
-            json={"items": items},
-        )
-        return body.get("data", {"accepted": [], "errors": []})
+        accepted: list[dict[str, Any]] = []
+        errors: list[dict[str, str]] = []
+        for item in items:
+            try:
+                body = self._request("POST", "/validator/commits", json=item)
+                accepted.append(body["data"])
+            except Exception as err:
+                errors.append(
+                    {
+                        "commit_id": str(item.get("cipher_commit") or "")[:64],
+                        "error_code": "OBSERVATION_FAILED",
+                        "message": str(err),
+                    }
+                )
+        return {"accepted": accepted, "errors": errors}
 
     def fetch_weight_inputs(self, limit: int = 500) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
@@ -243,7 +252,7 @@ class RestCoreClient:
         while True:
             body = self._request(
                 "GET",
-                "/validators/weight-inputs",
+                "/validator/weight-inputs",
                 params={"skip": skip, "limit": limit},
             )
             page = body.get("data", [])
@@ -254,6 +263,16 @@ class RestCoreClient:
                 break
             skip += len(page)
         return items
+
+    def update_commit_result(
+        self, commit_result_id: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        body = self._request(
+            "PUT",
+            f"/commit-results/{commit_result_id}",
+            json=payload,
+        )
+        return body["data"]
 
     @staticmethod
     def _parse_dt(value: str | None) -> datetime | None:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import datetime
+import math
 import os
 import time
 import traceback
@@ -158,9 +159,18 @@ class Validator(BaseValidator):
             )
             weight_inputs = []
 
+        now = datetime.datetime.now(datetime.timezone.utc)
+        decay_time = self._decay_reference_time(now)
+        if now.hour == self.config.SCORING_HOUR:
+            self._update_daily_decayed_scores(
+                weight_inputs=weight_inputs,
+                now=decay_time,
+            )
+
         challenge_scores = self._get_challenge_scores_from_weight_inputs(
             n_uids=n_uids,
             weight_inputs=weight_inputs,
+            now=decay_time,
         )
         alpha_burn_scores = self._get_alpha_burn_scores(n_uids)
         weights = (
@@ -289,7 +299,10 @@ class Validator(BaseValidator):
         return str(value)
 
     def _get_challenge_scores_from_weight_inputs(
-        self, n_uids: int, weight_inputs: list[dict[str, Any]]
+        self,
+        n_uids: int,
+        weight_inputs: list[dict[str, Any]],
+        now: datetime.datetime,
     ) -> np.ndarray:
         if not weight_inputs:
             bt.logging.info("[SET WEIGHTS] No challenge scores, using alpha burn only")
@@ -299,25 +312,25 @@ class Validator(BaseValidator):
         challenge_weights: dict[str, float] = {}
         docker_usernames: dict[str, str | None] = {}
         for item in weight_inputs:
-            challenge = item.get("challenge") or {}
-            challenge_id = challenge.get("id") or challenge.get("name") or "unknown"
+            challenge_id = (
+                item.get("challenge_id") or item.get("challenge_name") or "unknown"
+            )
             by_challenge[challenge_id].append(item)
-            challenge_weights[challenge_id] = self._challenge_weight(challenge)
-            miner = item.get("miner") or {}
-            uid = miner.get("uid")
+            challenge_weights[challenge_id] = self._challenge_weight(item)
+            uid = item.get("miner_uid")
             if uid is not None:
-                docker_usernames[str(uid)] = miner.get("docker_username")
+                docker_usernames[str(uid)] = item.get("docker_username")
 
         aggregated_scores = np.zeros(n_uids)
         for challenge_id, items in by_challenge.items():
             scores = np.zeros(n_uids)
             for item in items:
-                miner = item.get("miner") or {}
-                uid = miner.get("uid")
+                uid = item.get("miner_uid")
                 if uid is None or int(uid) >= n_uids:
                     continue
                 scores[int(uid)] = max(
-                    scores[int(uid)], float(item.get("final_score") or 0.0)
+                    scores[int(uid)],
+                    self._decayed_weight_score(item=item, now=now),
                 )
 
             normalized = self._exclude_same_miner(scores, docker_usernames)
@@ -332,15 +345,123 @@ class Validator(BaseValidator):
         return aggregated_scores
 
     @staticmethod
-    def _challenge_weight(challenge: dict[str, Any]) -> float:
-        config = challenge.get("config") or {}
-        for key in ("challenge_incentive_weight", "incentive_weight", "weight"):
-            if key in config:
-                try:
-                    return float(config[key])
-                except (TypeError, ValueError):
-                    return 1.0
-        return 1.0
+    def _challenge_weight(item: dict[str, Any]) -> float:
+        try:
+            return float(item.get("challenge_weight") or 1.0)
+        except (TypeError, ValueError):
+            return 1.0
+
+    def _update_daily_decayed_scores(
+        self, weight_inputs: list[dict[str, Any]], now: datetime.datetime
+    ) -> None:
+        if not weight_inputs:
+            return
+
+        updated = 0
+        errors = 0
+        for item in weight_inputs:
+            commit_result_id = item.get("best_commit_result_id")
+            if not commit_result_id:
+                continue
+
+            try:
+                decay_state, decayed_score = self._decay_state_and_score(
+                    item=item,
+                    now=now,
+                )
+                self.core_client.update_commit_result(
+                    commit_result_id=commit_result_id,
+                    payload={
+                        "decay_state": decay_state,
+                        "decayed_score": decayed_score,
+                    },
+                )
+                item["best_decayed_score"] = decayed_score
+                updated += 1
+            except Exception as err:
+                errors += 1
+                bt.logging.warning(
+                    "[SET WEIGHTS] Failed to update decayed score for "
+                    f"{commit_result_id}: {err}"
+                )
+
+        bt.logging.info(
+            "[SET WEIGHTS] Daily decay update completed: "
+            f"{updated} updated, {errors} errors"
+        )
+
+    def _decayed_weight_score(
+        self, item: dict[str, Any], now: datetime.datetime
+    ) -> float:
+        _, decayed_score = self._decay_state_and_score(item=item, now=now)
+        return decayed_score
+
+    def _decay_state_and_score(
+        self, item: dict[str, Any], now: datetime.datetime
+    ) -> tuple[str, float]:
+        score = float(item.get("best_final_score") or 0.0)
+        scored_at = self._parse_datetime(item.get("best_scored_at"))
+        if score <= 0.0 or scored_at is None:
+            return "NONE", 0.0
+
+        challenge_info = self._challenge_info_for_weight_item(item)
+        emission_config = challenge_info.get("emission_config", {})
+        stable_period_days = float(emission_config.get("stable_period_days", 10))
+        expiration_days = float(emission_config.get("expiration_days", 15))
+        alpha = float(emission_config.get("alpha", 0.002))
+        t_max = float(emission_config.get("t_max", 10))
+        if expiration_days <= stable_period_days:
+            expiration_days = stable_period_days + 1
+
+        days_elapsed = max((now - scored_at).total_seconds() / 86400, 0.0)
+        if days_elapsed <= stable_period_days:
+            decayed_score = score
+            decay_state = "NONE"
+        elif days_elapsed <= expiration_days:
+            decay_progress = (days_elapsed - stable_period_days) / (
+                expiration_days - stable_period_days
+            )
+            decayed_score = score * max(1 - decay_progress**2, 0.0)
+            decay_state = "DECAYING"
+        else:
+            decayed_score = 0.0
+            decay_state = "DECAYED"
+
+        effective_t = min(days_elapsed, t_max)
+        adjusted_score = decayed_score * math.exp(-alpha * effective_t)
+        return decay_state, max(adjusted_score, 0.0)
+
+    def _decay_reference_time(
+        self, now: datetime.datetime
+    ) -> datetime.datetime:
+        scoring_time = now.replace(
+            hour=self.config.SCORING_HOUR,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        if now < scoring_time:
+            scoring_time -= datetime.timedelta(days=1)
+        return scoring_time
+
+    @staticmethod
+    def _parse_datetime(value: Any) -> datetime.datetime | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime.datetime):
+            parsed = value
+        else:
+            parsed = datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=datetime.timezone.utc)
+        return parsed.astimezone(datetime.timezone.utc)
+
+    @staticmethod
+    def _challenge_info_for_weight_item(item: dict[str, Any]) -> dict[str, Any]:
+        challenge_name = item.get("challenge_name")
+        if challenge_name and challenge_name in ACTIVE_CHALLENGES:
+            return ACTIVE_CHALLENGES[challenge_name]
+        return {}
 
     def _exclude_same_miner(
         self,
