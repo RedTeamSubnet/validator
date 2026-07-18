@@ -29,7 +29,10 @@ RUN --mount=type=cache,target=/root/.cache,sharing=locked \
 
 RUN	--mount=type=cache,target=/root/.cache,sharing=locked \
 	--mount=type=bind,source=requirements.txt,target=requirements.txt \
-	python -m pip install --prefix=/install -r ./requirements.txt
+	python -m pip install --prefix=/install -r ./requirements.txt && \
+	find /install -path '*/site-packages/scalecodec' -prune -exec rm -rf {} + && \
+	find /install -path '*/site-packages/scalecodec-*.dist-info' -prune -exec rm -rf {} + && \
+	python -m pip install --prefix=/install --force-reinstall cyscale
 
 
 ## Here is the base image:

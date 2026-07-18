@@ -47,6 +47,10 @@ _run()
 
 	sleep 5
 	echo "[INFO]: Starting ${RT_VALIDATOR_SLUG}..."
+	if [ "${RT_FIX_CYSCALE_DEPS:-false}" = "true" ]; then
+		echo "[INFO]: Repairing cyscale dependencies..."
+		python -m pip uninstall scalecodec -y || exit 2
+	fi
 	exec gosu "${USER}:${GROUP}" sg docker "exec python -u -m validator" || exit 2
 
 	exit 0
