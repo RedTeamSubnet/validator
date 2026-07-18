@@ -5,7 +5,6 @@ import traceback
 from abc import ABC, abstractmethod
 
 import bittensor as bt
-from substrateinterface import SubstrateInterface
 from redteam_core.config import MainConfig
 from .config.validator import ValidatorMainConfig
 
@@ -19,7 +18,6 @@ class BaseValidator(ABC):
         self.setup_bittensor_objects()
         self.last_update = 0
         self.current_block = 0
-        self.node = SubstrateInterface(url=self.config.BITTENSOR.SUBTENSOR_NETWORK)
         self.is_running = False
         self.forward_thread: threading.Thread = None
 
@@ -40,16 +38,18 @@ class BaseValidator(ABC):
 
         bt_config = self._create_bittensor_config()
 
-        self.wallet = bt.wallet(config=bt_config)
+        self.wallet = bt.Wallet(config=bt_config)
         bt.logging.info(f"Wallet: {self.wallet}")
 
-        self.subtensor = bt.subtensor(config=bt_config)
+        self.subtensor = bt.Subtensor(config=bt_config)
         bt.logging.info(f"Subtensor: {self.subtensor}")
 
-        self.dendrite = bt.dendrite(wallet=self.wallet)
+        self.dendrite = bt.Dendrite(wallet=self.wallet)
         bt.logging.info(f"Dendrite: {self.dendrite}")
 
-        self.metagraph = self.subtensor.metagraph(self.config.BITTENSOR.SUBNET_NETUID)
+        self.metagraph = self.subtensor.metagraph(
+            netuid=self.config.BITTENSOR.SUBNET_NETUID
+        )
         bt.logging.info(f"Metagraph: {self.metagraph}")
 
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:

@@ -520,18 +520,19 @@ class Validator(BaseValidator):
         )
 
         # Set weights on-chain
-        result, log = self.subtensor.set_weights(
+        response = self.subtensor.set_weights(
             wallet=self.wallet,
             netuid=self.config.BITTENSOR.SUBNET_NETUID,
             uids=uint_uids,
             weights=uint_weights,
             version_key=self.config.SPEC_VERSION,
+            mechid=0,
         )
 
-        if result:
-            bt.logging.success(f"[SET WEIGHTS]: {log}")
+        if response.success:
+            bt.logging.success(f"[SET WEIGHTS]: {response.message}")
         else:
-            bt.logging.error(f"[SET WEIGHTS]: {log}")
+            bt.logging.error(f"[SET WEIGHTS]: {response.message}")
 
     # MARK: Commit Management
     def update_miner_commits(self, active_challenges: dict):
@@ -542,7 +543,7 @@ class Validator(BaseValidator):
 
         axons = [self.metagraph.axons[i] for i in uids]
         hotkeys = [self.metagraph.hotkeys[i] for i in uids]
-        dendrite = bt.dendrite(wallet=self.wallet)
+        dendrite = bt.Dendrite(wallet=self.wallet)
         synapse = Commit()
         if bt.logging.get_level() < 20:
             bt.logging.set_info()
@@ -761,11 +762,13 @@ class Validator(BaseValidator):
                 bt.logging.info(
                     f"Attempting to commit repo ID '{hf_repo_id}' to the blockchain (Attempt {attempt})..."
                 )
-                self.subtensor.commit(
+                response = self.subtensor.set_commitment(
                     wallet=self.wallet,
                     netuid=self.config.BITTENSOR.SUBNET_NETUID,
                     data=message,
                 )
+                if not response.success:
+                    raise RuntimeError(response.message)
                 bt.logging.success(
                     f"Successfully committed repo ID '{hf_repo_id}' to the blockchain."
                 )
