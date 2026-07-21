@@ -63,9 +63,10 @@ class BaseValidator(ABC):
 
     def run(self):
         bt.logging.info("Starting validator loop.")
-        # Try set weights after initial sync
+        # Try set weights after initial metagraph sync
         try:
-            bt.logging.info("Initializing weights")
+            bt.logging.info("Initializing metagraph and weights")
+            self.resync_metagraph()
             self.set_weights()
         except Exception:
             bt.logging.error(f"Initial set weights error: {traceback.format_exc()}")
@@ -83,16 +84,12 @@ class BaseValidator(ABC):
                 bt.logging.info("Started new forward thread")
 
             try:
+                self.resync_metagraph()
+                bt.logging.success("Resync metagraph completed")
                 self.set_weights()
                 bt.logging.success("Set weights completed")
             except Exception:
                 bt.logging.error(f"Set weights error: {traceback.format_exc()}")
-
-            try:
-                self.resync_metagraph()
-                bt.logging.success("Resync metagraph completed")
-            except Exception:
-                bt.logging.error(f"Resync metagraph error: {traceback.format_exc()}")
             except KeyboardInterrupt:
                 bt.logging.success("Keyboard interrupt detected. Exiting validator.")
                 exit()
@@ -114,7 +111,16 @@ class BaseValidator(ABC):
             bt.logging.debug("Started")
 
     def resync_metagraph(self):
-        self.metagraph.sync()
+        self.metagraph.sync(subtensor=self.subtensor)
+        hotkey = self.wallet.hotkey.ss58_address
+        if hotkey not in self.metagraph.hotkeys:
+            raise RuntimeError(
+                f"Validator hotkey {hotkey} is not registered on metagraph after sync"
+            )
+        self.uid = self.metagraph.hotkeys.index(hotkey)
+        bt.logging.info(
+            f"Synced metagraph at block {self.metagraph.block}; validator uid: {self.uid}"
+        )
 
     def _run_forward(self):
         """Run a single forward pass in a separate thread."""
