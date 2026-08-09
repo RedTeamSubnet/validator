@@ -552,7 +552,7 @@ class Validator(BaseValidator):
         )
         if bt.logging.get_level() < 20:
             bt.logging.set_debug()
-
+        _decrypted_commits = []
         # Update new miner commits to self.miner_commits
         for uid, hotkey, response in zip(uids, hotkeys, responses):
             this_miner_commit = self.miner_commits.setdefault((uid, hotkey), {})
@@ -600,9 +600,7 @@ class Validator(BaseValidator):
                         f = Fernet(key)
                         commit = f.decrypt(encrypted_commit).decode()
                         current_miner_challenge_commit.commit = commit
-                        bt.logging.success(
-                            f"Decrypted commit: {uid} - {hotkey} - {challenge_name} - {current_miner_challenge_commit.encrypted_commit} to {current_miner_challenge_commit.commit}"
-                        )
+                        _decrypted_commits.append(current_miner_challenge_commit)
                     except Exception as e:
                         bt.logging.error(f"Failed to decrypt commit: {e}")
 
@@ -632,6 +630,9 @@ class Validator(BaseValidator):
                 self.miner_commits.items(), key=lambda item: item[0]
             )
         }
+        bt.logging.info(
+            f"[UPDATE MINER COMMITS] Updated miner commits for {len(self.miner_commits)} miners, decrypted commits: {len(_decrypted_commits)}"
+        )
 
     def get_revealed_commits(self) -> dict[str, list[MinerChallengeCommit]]:
         """
@@ -649,9 +650,6 @@ class Validator(BaseValidator):
         _list_skipped_commits = []
         for (uid, hotkey), commits in self.miner_commits.items():
             for challenge_name, commit in commits.items():
-                bt.logging.info(
-                    f"[GET REVEALED COMMITS] Try to reveal commit: {uid} - {hotkey} - {challenge_name}"
-                )
                 if commit.commit:
                     this_challenge_revealed_commits = revealed_commits.setdefault(
                         challenge_name, []
@@ -678,21 +676,9 @@ class Validator(BaseValidator):
                         )
                 else:
                     _list_skipped_commits.append(f"{challenge_name}-{uid}-{hotkey}")
-        for list_name, list_data in [
-            ("Existing", sorted(_list_existing_commits)),
-            ("Revealed", sorted(_list_revealed_commits)),
-            ("Skipped", sorted(_list_skipped_commits)),
-        ]:
-            if list_data:
-                newline = "\n"  # Define newline character separately
-                bt.logging.info(
-                    f"[GET REVEALED COMMITS] {list_name} commits: {newline.join(list_data)}"
-                )
-            else:
-                bt.logging.info(
-                    f"[GET REVEALED COMMITS] No {list_name.lower()} commits"
-                )
-
+        bt.logging.info(
+            f"[REVEALED COMMITS] number of revealed commits: {len(_list_revealed_commits)}, existing commits: {len(_list_existing_commits)}, skipped commits: {len(_list_skipped_commits)}"
+        )
         return revealed_commits
 
     # MARK: Storage
@@ -729,6 +715,9 @@ class Validator(BaseValidator):
         )
 
         try:
+            bt.logging.info(
+                f"[STORE MINER COMMMITS] {len(data_to_store)} Queuing miner commit data for storage..."
+            )
             self.storage_manager.update_commit_batch(
                 commits=data_to_store, async_update=True
             )
