@@ -22,7 +22,7 @@ from redteam_core.validator.models import MinerChallengeCommit
 from redteam_core.validator.utils import create_validator_request_header_fn
 from redteam_core.protocol import Commit
 from ._base import BaseValidator
-from .core_api import CoreApiClient
+from .core_api import CoreApiClient, CoreCommitSubmission
 
 
 class Validator(BaseValidator):
@@ -75,7 +75,13 @@ class Validator(BaseValidator):
             metagraph=self.metagraph,
             challenge_managers=self.challenge_managers,
         )
+        self.core_api_client = CoreApiClient(
+            base_url=str(self.config.CORE_API_URL),
+            hotkey=self.wallet.hotkey,
+        )
         self._init_active_challenges()
+        self.seen_commits: dict[str, dict[str, datetime.datetime]] = {}
+        self._init_seen_commits()
 
         # Initialize validator state
         self.miner_commits: dict[tuple[int, str], dict[str, MinerChallengeCommit]] = (
@@ -91,10 +97,7 @@ class Validator(BaseValidator):
         Filters challenges by date and maintains challenge manager consistency.
         """
         self.active_challenges = deepcopy(ACTIVE_CHALLENGES)
-        CoreApiClient(
-            base_url=str(self.config.CORE_API_URL),
-            hotkey=self.wallet.hotkey,
-        ).sync_active_challenges(self.active_challenges)
+        self.core_api_client.sync_active_challenges(self.active_challenges)
 
         # Add challenge managers for all active challenges
         for challenge in self.active_challenges.keys():
@@ -114,6 +117,12 @@ class Validator(BaseValidator):
         }
 
         self.miner_managers.update_challenge_managers(self.challenge_managers)
+
+    def _init_seen_commits(self) -> None:
+        """Load existing core commits once active challenge IDs are available."""
+        self.seen_commits = self.core_api_client.fetch_seen_commits(
+            self.active_challenges
+        )
 
     def _init_validator_state(self):
         """
@@ -210,6 +219,8 @@ class Validator(BaseValidator):
 
         self.update_miner_commits(self.active_challenges)
         bt.logging.success(f"[FORWARD] Miner commits updated for {date_time}")
+        self.sync_miner_commits_to_core(self.active_challenges)
+        bt.logging.success(f"[FORWARD] Miner commits synced to core for {date_time}")
 
         # Update miner infos
         for challenge_name, challenge_manager in self.challenge_managers.items():
@@ -637,6 +648,51 @@ class Validator(BaseValidator):
         }
         bt.logging.info(
             f"[UPDATE MINER COMMITS] Updated miner commits for {len(self.miner_commits)} miners, decrypted commits: {len(_decrypted_commits)}"
+        )
+
+    def sync_miner_commits_to_core(self, active_challenges: dict) -> None:
+        """Query miner axons and persist unseen encrypted commits in rest-core-api."""
+        uids = [int(uid) for uid in self.metagraph.uids]
+        axons = [self.metagraph.axons[i] for i in uids]
+        hotkeys = [self.metagraph.hotkeys[i] for i in uids]
+        dendrite = bt.Dendrite(wallet=self.wallet)
+        if bt.logging.get_level() < 20:
+            bt.logging.set_info()
+        responses: list[Commit] = dendrite.query(
+            axons, Commit(), timeout=self.config.QUERY_TIMEOUT
+        )
+        if bt.logging.get_level() < 20:
+            bt.logging.set_debug()
+
+        observed_at = datetime.datetime.now(datetime.timezone.utc)
+        submissions: list[CoreCommitSubmission] = []
+        for uid, hotkey, response in zip(uids, hotkeys, responses):
+            encrypted_commit_dockers = response.encrypted_commit_dockers
+            for challenge_name, cipher_commit in encrypted_commit_dockers.items():
+                challenge = active_challenges.get(challenge_name)
+                if not challenge or not isinstance(cipher_commit, str):
+                    continue
+                challenge_id = challenge.get("challenge_id")
+                if not isinstance(challenge_id, str):
+                    bt.logging.error(
+                        f"[CORE COMMIT SYNC] Active challenge {challenge_name} is missing challenge_id"
+                    )
+                    continue
+                submissions.append(
+                    CoreCommitSubmission(
+                        miner_uid=uid,
+                        miner_hotkey=hotkey,
+                        challenge_name=challenge_name,
+                        challenge_id=challenge_id,
+                        cipher_commit=cipher_commit,
+                        committed_at=observed_at,
+                    )
+                )
+
+        self.core_api_client.sync_submissions(
+            submissions,
+            subnet_id=self.config.BITTENSOR.SUBNET_NETUID,
+            seen_commits=self.seen_commits,
         )
 
     def get_revealed_commits(self) -> dict[str, list[MinerChallengeCommit]]:
