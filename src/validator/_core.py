@@ -22,6 +22,7 @@ from redteam_core.validator.models import MinerChallengeCommit
 from redteam_core.validator.utils import create_validator_request_header_fn
 from redteam_core.protocol import Commit
 from ._base import BaseValidator
+from .core_api import CoreApiClient
 
 
 class Validator(BaseValidator):
@@ -90,6 +91,10 @@ class Validator(BaseValidator):
         Filters challenges by date and maintains challenge manager consistency.
         """
         self.active_challenges = deepcopy(ACTIVE_CHALLENGES)
+        CoreApiClient(
+            base_url=str(self.config.CORE_API_URL),
+            hotkey=self.wallet.hotkey,
+        ).sync_active_challenges(self.active_challenges)
 
         # Add challenge managers for all active challenges
         for challenge in self.active_challenges.keys():
