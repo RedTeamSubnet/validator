@@ -5,6 +5,8 @@ from typing import Any, Iterable
 import bittensor as bt
 import requests
 
+from ._schemas import CHALLENGES, COMMITS, CoreWeightMatrixPM
+
 
 class CoreApiConflictError(RuntimeError):
     """A commit already exists in rest-core-api."""
@@ -35,8 +37,6 @@ class CoreApiClient:
     def _data(response: requests.Response) -> Any:
         response.raise_for_status()
         payload = response.json()
-        if not isinstance(payload, dict):
-            raise ValueError("Core API returned a non-object JSON response")
         return payload.get("data", payload)
 
     # TODO: Change the behaviour to store a token and refresh it when it expires instead of requesting a new one every time
@@ -50,9 +50,6 @@ class CoreApiClient:
             )
         )
         nonce = challenge.get("nonce") if isinstance(challenge, dict) else None
-        if not isinstance(nonce, str) or not nonce:
-            raise ValueError("Core API wallet challenge did not include a nonce")
-
         token = self._data(
             requests.post(
                 self._url("auth/wallet/verify"),
@@ -64,11 +61,7 @@ class CoreApiClient:
                 timeout=self.timeout,
             )
         )
-        access_token = token.get("access_token") if isinstance(token, dict) else None
-        if not isinstance(access_token, str) or not access_token:
-            raise ValueError(
-                "Core API wallet verification did not include an access token"
-            )
+        access_token = token.get("access_token")
         return access_token
 
     def _request(
@@ -88,9 +81,31 @@ class CoreApiClient:
             params=params,
             timeout=self.timeout,
         )
+        response.raise_for_status()
         if response.status_code == 409:
             raise CoreApiConflictError(f"Core API conflict for {method} {path}")
         return self._data(response)
+
+    @staticmethod
+    def _scoring_spec(challenge: dict) -> dict:
+        spec = dict(challenge.get("core_config_spec") or {})
+        emission = challenge.get("emission_config") or {}
+        spec["challenge_incentive_weight"] = challenge.get(
+            "challenge_incentive_weight", spec.get("challenge_incentive_weight", 1.0)
+        )
+        for key in ("stable_period_days", "expiration_days", "alpha", "t_max"):
+            if key in emission:
+                spec[key] = emission[key]
+        return spec
+
+    def fetch_weight_matrix(self) -> tuple[datetime.datetime | None, dict[int, float]]:
+        """Fetch the latest completed scoring matrix from rest-core-api."""
+        matrix = CoreWeightMatrixPM.model_validate(
+            self._request(
+                "GET", "integration/validator/weight-matrix", self._access_token()
+            )
+        )
+        return matrix.refreshed_at, {entry.uid: entry.score for entry in matrix.entries}
 
     def _challenges_by_name(self, access_token: str) -> dict[str, dict]:
         challenges: dict[str, dict] = {}
@@ -103,16 +118,9 @@ class CoreApiClient:
                 access_token,
                 params={"skip": skip, "limit": limit},
             )
-            if not isinstance(page, list):
-                raise ValueError("Core API challenge list did not include a data list")
+            page = CHALLENGES.validate_python(page)
             for challenge in page:
-                if not isinstance(challenge, dict):
-                    raise ValueError(
-                        "Core API challenge list included an invalid challenge"
-                    )
-                name = challenge.get("name")
-                if isinstance(name, str):
-                    challenges[name] = challenge
+                challenges[challenge.name] = challenge.model_dump(exclude_none=True)
             if len(page) < limit:
                 return challenges
             skip += len(page)
@@ -151,13 +159,11 @@ class CoreApiClient:
             access_token,
             json={
                 "kind": challenge["core_kind"],
-                "spec": challenge["core_config_spec"],
+                "spec": self._scoring_spec(challenge),
                 "active_from": challenge["core_config_active_from"],
                 "active_until": challenge["core_config_active_until"],
             },
         )
-        if not isinstance(config, dict) or not isinstance(config.get("id"), str):
-            raise ValueError("Core API challenge config creation did not include an ID")
 
         created = self._request(
             "POST",
@@ -173,8 +179,6 @@ class CoreApiClient:
                 "challenge_config_id": config["id"],
             },
         )
-        if not isinstance(created, dict) or not isinstance(created.get("id"), str):
-            raise ValueError("Core API challenge creation did not include an ID")
         return created["id"]
 
     def sync_active_challenges(self, active_challenges: dict[str, dict]) -> None:
@@ -184,12 +188,23 @@ class CoreApiClient:
             existing = existing_challenges.get(challenge_name)
             if existing:
                 challenge_id = existing.get("id")
-                if not isinstance(challenge_id, str):
-                    raise ValueError(
-                        f"Core API challenge '{challenge_name}' did not include an ID"
-                    )
             else:
                 challenge_id = self._create_challenge(challenge, access_token)
+            if existing:
+                config_id = existing.get("challenge_config_id")
+                current = self._request(
+                    "GET", f"challenge-configs/{config_id}", access_token
+                )
+                current_spec = (
+                    current.get("spec", {}) if isinstance(current, dict) else {}
+                )
+                self._request(
+                    "PUT",
+                    f"challenge-configs/{config_id}",
+                    access_token,
+                    json={"spec": {**current_spec, **self._scoring_spec(challenge)}},
+                )
+
             challenge["challenge_id"] = challenge_id
 
     def _commits_by_challenge(
@@ -205,22 +220,9 @@ class CoreApiClient:
                 access_token,
                 params={"challenge_id": challenge_id, "skip": skip, "limit": limit},
             )
-            if not isinstance(page, list):
-                raise ValueError("Core API commit list did not include a data list")
+            page = COMMITS.validate_python(page)
             for commit in page:
-                if not isinstance(commit, dict):
-                    raise ValueError("Core API commit list included an invalid commit")
-                cipher_commit = commit.get("cipher_commit")
-                committed_at = commit.get("committed_at")
-                if not isinstance(cipher_commit, str) or not isinstance(
-                    committed_at, str
-                ):
-                    raise ValueError(
-                        "Core API commit is missing cipher_commit or committed_at"
-                    )
-                commits[cipher_commit] = datetime.datetime.fromisoformat(
-                    committed_at.replace("Z", "+00:00")
-                )
+                commits[commit.cipher_commit] = commit.committed_at
             if len(page) < limit:
                 return commits
             skip += len(page)
@@ -232,10 +234,6 @@ class CoreApiClient:
         seen_commits: dict[str, dict[str, datetime.datetime]] = {}
         for challenge_name, challenge in active_challenges.items():
             challenge_id = challenge.get("challenge_id")
-            if not isinstance(challenge_id, str):
-                raise ValueError(
-                    f"Active challenge '{challenge_name}' is missing challenge_id"
-                )
             seen_commits[challenge_name] = self._commits_by_challenge(
                 challenge_id, access_token
             )
@@ -248,13 +246,9 @@ class CoreApiClient:
             access_token,
             params={"hotkey_address": hotkey, "skip": 0, "limit": 1},
         )
-        if not isinstance(neurons, list):
-            raise ValueError("Core API neuron list did not include a data list")
         if not neurons:
             return None
         neuron_id = neurons[0].get("id") if isinstance(neurons[0], dict) else None
-        if not isinstance(neuron_id, str):
-            raise ValueError("Core API neuron record did not include an ID")
         return neuron_id
 
     def sync_submissions(
@@ -325,10 +319,6 @@ class CoreApiClient:
             committed_at = (
                 created.get("committed_at") if isinstance(created, dict) else None
             )
-            if not isinstance(committed_at, str):
-                raise ValueError(
-                    "Core API commit creation did not include committed_at"
-                )
             challenge_seen_commits[submission.cipher_commit] = (
                 datetime.datetime.fromisoformat(committed_at.replace("Z", "+00:00"))
             )
