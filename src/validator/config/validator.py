@@ -26,10 +26,6 @@ class ValidatorMainConfig(BaseConfig):
     #     default=None,
     #     description="SS58 address of the hotkey to use for validation (overrides HOTKEY_NAME if set)",
     # )
-    USE_CENTRALIZED_SCORING: bool = Field(
-        default=True,
-        description="Use centralized scoring service instead of local scoring",
-    )
     DATA_DIR: str = Field(
         default="/var/lib/agent-validator",
         min_length=1,

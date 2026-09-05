@@ -19,11 +19,6 @@ fi
 ## --- Base --- ##
 
 
-_use_centralized_param=""
-if [ "${RT_VALIDATOR_USE_CENTRALIZED:-}" = "true" ]; then
-	_use_centralized_param="--validator.use_centralized_scoring"
-fi
-
 _logging_param=""
 if [ "${RT_VALIDATOR_LOG_LEVEL:-}" = "debug" ]; then
 	_logging_param="--logging.debug"
