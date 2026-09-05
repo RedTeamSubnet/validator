@@ -5,7 +5,13 @@ from typing import Any, Iterable
 import bittensor as bt
 import requests
 
-from ._schemas import CHALLENGES, COMMITS, CoreWeightMatrixPM
+from ._schemas import (
+    CHALLENGES,
+    COMMITS,
+    CoreChallengeKindPM,
+    CoreChallengePM,
+    CoreWeightMatrixPM,
+)
 
 
 class CoreApiConflictError(RuntimeError):
@@ -86,18 +92,6 @@ class CoreApiClient:
             raise CoreApiConflictError(f"Core API conflict for {method} {path}")
         return self._data(response)
 
-    @staticmethod
-    def _scoring_spec(challenge: dict) -> dict:
-        spec = dict(challenge.get("core_config_spec") or {})
-        emission = challenge.get("emission_config") or {}
-        spec["challenge_incentive_weight"] = challenge.get(
-            "challenge_incentive_weight", spec.get("challenge_incentive_weight", 1.0)
-        )
-        for key in ("stable_period_days", "expiration_days", "alpha", "t_max"):
-            if key in emission:
-                spec[key] = emission[key]
-        return spec
-
     def fetch_weight_matrix(self) -> tuple[datetime.datetime | None, dict[int, float]]:
         """Fetch the latest completed scoring matrix from rest-core-api."""
         matrix = CoreWeightMatrixPM.model_validate(
@@ -107,8 +101,8 @@ class CoreApiClient:
         )
         return matrix.refreshed_at, {entry.uid: entry.score for entry in matrix.entries}
 
-    def _challenges_by_name(self, access_token: str) -> dict[str, dict]:
-        challenges: dict[str, dict] = {}
+    def _challenges_by_name(self, access_token: str) -> dict[str, CoreChallengePM]:
+        challenges: dict[str, CoreChallengePM] = {}
         skip = 0
         limit = 100
         while True:
@@ -116,14 +110,44 @@ class CoreApiClient:
                 "GET",
                 "challenges/",
                 access_token,
-                params={"skip": skip, "limit": limit},
+                params={"skip": skip, "limit": limit, "expands": "config"},
             )
             page = CHALLENGES.validate_python(page)
             for challenge in page:
-                challenges[challenge.name] = challenge.model_dump(exclude_none=True)
+                challenges[challenge.name] = challenge
             if len(page) < limit:
                 return challenges
             skip += len(page)
+
+    def _challenge_kind(self, kind: str, access_token: str) -> CoreChallengeKindPM:
+        return CoreChallengeKindPM.model_validate(
+            self._request("GET", f"challenge-kinds/{kind}", access_token)
+        )
+
+    def load_active_challenges(self, runtime_challenges: dict[str, dict]) -> dict[str, dict]:
+        """Merge YAML-only runtime fields with authoritative core challenge data."""
+        access_token = self._access_token()
+        core_challenges = self._challenges_by_name(access_token)
+        kinds: dict[str, CoreChallengeKindPM] = {}
+        merged: dict[str, dict] = {}
+        for name, runtime in runtime_challenges.items():
+            challenge = core_challenges.get(name)
+            if challenge is None:
+                raise RuntimeError(f"Active challenge '{name}' is missing from core")
+            if not challenge.is_active:
+                raise RuntimeError(f"Active challenge '{name}' is inactive in core")
+            if challenge.config is None:
+                raise RuntimeError(f"Active challenge '{name}' has no expanded core config")
+            if challenge.kind not in kinds:
+                kinds[challenge.kind] = self._challenge_kind(challenge.kind, access_token)
+            merged[name] = {
+                **runtime,
+                "_id": challenge.id,
+                "challenge_config": challenge.config.model_dump(),
+                "challenge_kind": kinds[challenge.kind].model_dump(),
+                "core_db": challenge.model_dump(),
+            }
+        return merged
 
     def _create_challenge(self, challenge: dict, access_token: str) -> str:
         required_fields = (
@@ -233,7 +257,7 @@ class CoreApiClient:
         access_token = self._access_token()
         seen_commits: dict[str, dict[str, datetime.datetime]] = {}
         for challenge_name, challenge in active_challenges.items():
-            challenge_id = challenge.get("challenge_id")
+            challenge_id = challenge.get("_id")
             seen_commits[challenge_name] = self._commits_by_challenge(
                 challenge_id, access_token
             )

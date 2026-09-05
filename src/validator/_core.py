@@ -96,8 +96,9 @@ class Validator(BaseValidator):
         Initializes and updates challenge managers based on current active challenges.
         Filters challenges by date and maintains challenge manager consistency.
         """
-        self.active_challenges = deepcopy(ACTIVE_CHALLENGES)
-        self.core_api_client.sync_active_challenges(self.active_challenges)
+        self.active_challenges = self.core_api_client.load_active_challenges(
+            deepcopy(ACTIVE_CHALLENGES)
+        )
 
         # Add challenge managers for all active challenges
         for challenge in self.active_challenges.keys():
@@ -510,8 +511,7 @@ class Validator(BaseValidator):
         n_uids = int(self.metagraph.n)
         uids = list(range(n_uids))
         weights = np.zeros(len(uids))
-        self.docker_usernames = self._fetch_miners_docker_info_from_storage()
-        scores = self.miner_managers.get_onchain_scores(n_uids, self.docker_usernames)
+        scores = self.fetch_weight_matrix()
         bt.logging.debug(f"[SET WEIGHTS] scores: {scores}")
         weights = scores
         (
@@ -549,6 +549,21 @@ class Validator(BaseValidator):
             bt.logging.success(f"[SET WEIGHTS]: {response.message}")
         else:
             bt.logging.error(f"[SET WEIGHTS]: {response.message}")
+
+    def fetch_weight_matrix(self) -> np.ndarray:
+        """Load core-owned scores into the current metagraph UID vector."""
+        refreshed_at, matrix = self.core_api_client.fetch_weight_matrix()
+        scores = np.zeros(int(self.metagraph.n))
+        for uid, score in matrix.items():
+            if uid < len(scores):
+                scores[uid] = score
+            else:
+                bt.logging.warning(f"[SET WEIGHTS] Ignoring stale core UID {uid}")
+        bt.logging.info(
+            f"[SET WEIGHTS] Using core matrix refreshed at {refreshed_at}; "
+            f"{len(matrix)} scores loaded"
+        )
+        return scores
 
     # MARK: Commit Management
     def update_miner_commits(self, active_challenges: dict):
@@ -672,10 +687,10 @@ class Validator(BaseValidator):
                 challenge = active_challenges.get(challenge_name)
                 if not challenge or not isinstance(cipher_commit, str):
                     continue
-                challenge_id = challenge.get("challenge_id")
+                challenge_id = challenge.get("_id")
                 if not isinstance(challenge_id, str):
                     bt.logging.error(
-                        f"[CORE COMMIT SYNC] Active challenge {challenge_name} is missing challenge_id"
+                        f"[CORE COMMIT SYNC] Active challenge {challenge_name} is missing _id"
                     )
                     continue
                 submissions.append(

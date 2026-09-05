@@ -2,13 +2,31 @@
 
 import datetime
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 
 class CoreChallengePM(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     id: str
     name: str
-    challenge_config_id: str | None = None
+    kind: str
+    is_active: bool
+    config: "CoreChallengeConfigPM | None" = None
+
+
+class CoreChallengeConfigPM(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    kind: str
+    spec: dict
+
+
+class CoreChallengeKindPM(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    kind: str
 
 
 class CoreCommitPM(BaseModel):
@@ -34,6 +52,8 @@ __all__ = [
     "CHALLENGES",
     "COMMITS",
     "CoreChallengePM",
+    "CoreChallengeConfigPM",
+    "CoreChallengeKindPM",
     "CoreCommitPM",
     "CoreWeightMatrixPM",
     "CoreWeightPM",
