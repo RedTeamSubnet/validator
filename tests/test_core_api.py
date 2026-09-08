@@ -4,6 +4,21 @@ from unittest.mock import Mock
 from src.validator.core_api import CoreApiClient, CoreCommitOutcome
 
 
+def test_load_active_challenges_uses_core_as_the_authority():
+    client = CoreApiClient("https://core.example/api/v1", Mock())
+    client._list = listed = Mock(
+        return_value=[
+            {"id": "cha-active", "name": "active", "kind": "AAD", "is_active": True},
+            {"id": "cha-inactive", "name": "inactive", "kind": "BV", "is_active": False},
+        ]
+    )
+
+    assert client.load_active_challenges() == {
+        "active": {"_id": "cha-active", "kind": "AAD"}
+    }
+    listed.assert_called_once_with("challenges/", params={})
+
+
 def test_commit_outcome_identity_is_stable():
     outcome = CoreCommitOutcome(
         miner_uid=7,

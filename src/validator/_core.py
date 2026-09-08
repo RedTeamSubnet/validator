@@ -8,7 +8,6 @@ from typing import Any
 import bittensor as bt
 import numpy as np
 from cryptography.fernet import Fernet
-from redteam_core.challenge_pool import ACTIVE_CHALLENGES
 from redteam_core.protocol import Commit
 
 # from redteam_core.validator import start_bittensor_log_listener
@@ -32,10 +31,8 @@ class Validator(BaseValidator):
         # start_bittensor_log_listener()
 
     def get_active_challenges(self) -> dict[str, dict[str, Any]]:
-        """Resolve redteam_core active challenges against REST core API metadata."""
-        self.active_challenges = self.core_api_client.load_active_challenges(
-            ACTIVE_CHALLENGES
-        )
+        """Load the DB-authoritative active challenge set."""
+        self.active_challenges = self.core_api_client.load_active_challenges()
         return self.active_challenges
 
     def query_miners_and_relay_commits(self) -> None:

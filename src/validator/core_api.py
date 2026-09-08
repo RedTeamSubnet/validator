@@ -45,31 +45,13 @@ class CoreApiClient:
             {int(row["uid"]): float(row["score"]) for row in payload.get("entries", [])},
         )
 
-    def load_active_challenges(
-        self, runtime_challenges: dict[str, dict[str, Any]]
-    ) -> dict[str, dict[str, Any]]:
-        """Merge local active selection with canonical REST core challenge metadata."""
-        by_name = {
-            challenge["name"]: challenge
-            for challenge in self._list("challenges/", params={"expands": "config"})
+    def load_active_challenges(self) -> dict[str, dict[str, str]]:
+        """Load the DB-authoritative active challenge set for commit relaying."""
+        return {
+            challenge["name"]: {"_id": challenge["id"], "kind": challenge["kind"]}
+            for challenge in self._list("challenges/", params={})
+            if challenge.get("is_active")
         }
-        resolved: dict[str, dict[str, Any]] = {}
-        for name, runtime in runtime_challenges.items():
-            challenge = by_name.get(name)
-            if not challenge or not challenge.get("is_active"):
-                raise RuntimeError(f"Active challenge '{name}' is unavailable in REST core API")
-            config = challenge.get("config")
-            if not config:
-                raise RuntimeError(f"Active challenge '{name}' has no core configuration")
-            kind = self._request("GET", f"challenge-kinds/{challenge['kind']}")
-            resolved[name] = {
-                **runtime,
-                "_id": challenge["id"],
-                "challenge_config": config,
-                "challenge_kind": kind,
-                "core_db": challenge,
-            }
-        return resolved
 
     def sync_commit(self, outcome: CoreCommitOutcome) -> bool:
         """Create one commit, then update that same core commit as it is revealed."""
