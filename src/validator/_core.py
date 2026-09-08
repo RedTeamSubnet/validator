@@ -108,16 +108,16 @@ class Validator(BaseValidator):
 
     def _relay_outcome(self, outcome: CoreCommitOutcome) -> None:
         # A discovered-but-unrevealed commit must be queried again next epoch.
+        _relayed = False
         if outcome.status == "decrypted" and self.cache.has_seen(outcome.identity):
             return
         try:
-            self.core_api_client.sync_commit(
-                outcome, subnet_id=self.config.BITTENSOR.SUBNET_NETUID
-            )
+            _relayed = self.core_api_client.sync_commit(outcome)
         except Exception:
             bt.logging.exception("[COMMITS] Failed to relay %s", outcome.identity)
             return
-        if outcome.status == "decrypted":
+
+        if _relayed and outcome.status == "decrypted":
             self.cache.mark_seen(outcome.identity)
 
     def _outcomes_from_response(

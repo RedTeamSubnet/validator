@@ -71,9 +71,15 @@ class CoreApiClient:
             }
         return resolved
 
-    def sync_commit(self, outcome: CoreCommitOutcome, *, subnet_id: int) -> None:
+    def sync_commit(self, outcome: CoreCommitOutcome) -> bool:
         """Create one commit, then update that same core commit as it is revealed."""
-        miner_id = self._miner_id(outcome.miner_hotkey, subnet_id)
+        miner_id = self._miner_id(outcome.miner_hotkey)
+        if miner_id is None:
+            bt.logging.warning(
+                f"[COMMITS] Skipping relay for unregistered miner hotkey "
+                f"{outcome.miner_hotkey}; it will be retried on a later forward iteration"
+            )
+            return False
         commit = next(
             (
                 item for item in self._list("commits/", params={"challenge_id": outcome.challenge_id})
@@ -99,18 +105,14 @@ class CoreApiClient:
             "note": outcome.error,
         }
         self._request("PUT", f"commits/{commit['id']}", json=update)
+        return True
 
-    def _miner_id(self, hotkey: str, subnet_id: int) -> str:
+    def _miner_id(self, hotkey: str) -> str | None:
         neurons = self._request(
             "GET", "neurons/", params={"hotkey_address": hotkey, "limit": 1}
         )
         if not neurons:
-            self._request("POST", f"subnets/{subnet_id}/sync")
-            neurons = self._request(
-                "GET", "neurons/", params={"hotkey_address": hotkey, "limit": 1}
-            )
-        if not neurons:
-            raise RuntimeError(f"Miner hotkey '{hotkey}' is absent from REST core API")
+            return None
         return neurons[0]["id"]
 
     def _list(self, path: str, *, params: dict[str, Any]) -> list[dict[str, Any]]:
