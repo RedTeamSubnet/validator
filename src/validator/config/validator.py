@@ -22,10 +22,6 @@ class ValidatorMainConfig(BaseConfig):
     HOTKEY_NAME: str = Field(
         default="default", description="Name of the hotkey to use for validation"
     )
-    # HOTKEY_ADDRESS: Optional[str] = Field(
-    #     default=None,
-    #     description="SS58 address of the hotkey to use for validation (overrides HOTKEY_NAME if set)",
-    # )
     DATA_DIR: str = Field(
         default="/var/lib/agent-validator",
         min_length=1,
