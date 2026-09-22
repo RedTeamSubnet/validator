@@ -25,7 +25,7 @@ class CoreCommitOutcome:
 
     @property
     def identity(self) -> str:
-        return f"{self.challenge_id}:{self.miner_hotkey}:{self.cipher_commit}"
+        return f"{self.challenge_id}:{self.cipher_commit}"
 
 
 class CoreApiClient:
@@ -40,9 +40,15 @@ class CoreApiClient:
         payload = self._request("GET", "integration/validator/weight-matrix")
         refreshed_at = payload.get("refreshed_at")
         return (
-            dt.datetime.fromisoformat(refreshed_at.replace("Z", "+00:00"))
-            if refreshed_at else None,
-            {int(row["uid"]): float(row["score"]) for row in payload.get("entries", [])},
+            (
+                dt.datetime.fromisoformat(refreshed_at.replace("Z", "+00:00"))
+                if refreshed_at
+                else None
+            ),
+            {
+                int(row["uid"]): float(row["score"])
+                for row in payload.get("entries", [])
+            },
         )
 
     def load_active_challenges(self) -> dict[str, dict[str, str]]:
@@ -64,25 +70,34 @@ class CoreApiClient:
             return False
         commit = next(
             (
-                item for item in self._list("commits/", params={"challenge_id": outcome.challenge_id})
+                item
+                for item in self._list(
+                    "commits/", params={"challenge_id": outcome.challenge_id}
+                )
                 if item.get("miner_id") == miner_id
                 and item.get("cipher_commit") == outcome.cipher_commit
             ),
             None,
         )
         if commit is None:
-            commit = self._request("POST", "commits/", json={
-                "cipher_commit": outcome.cipher_commit,
-                "committed_at": outcome.committed_at.isoformat(),
-                "challenge_id": outcome.challenge_id,
-                "miner_id": miner_id,
-                "reveal_key": outcome.revealed_key,
-            })
+            commit = self._request(
+                "POST",
+                "commits/",
+                json={
+                    "cipher_commit": outcome.cipher_commit,
+                    "committed_at": outcome.committed_at.isoformat(),
+                    "challenge_id": outcome.challenge_id,
+                    "miner_id": miner_id,
+                    "reveal_key": outcome.revealed_key,
+                },
+            )
         update = {
             "reveal_key": outcome.revealed_key,
             "plain_commit": outcome.decrypted_commit,
-            "state": "FAILED" if outcome.error else (
-                "REVEALED" if outcome.decrypted_commit else "COMMITTED"
+            "state": (
+                "FAILED"
+                if outcome.error
+                else ("REVEALED" if outcome.decrypted_commit else "COMMITTED")
             ),
             "note": outcome.error,
         }
@@ -101,18 +116,29 @@ class CoreApiClient:
         rows: list[dict[str, Any]] = []
         skip = 0
         while True:
-            page = self._request("GET", path, params={**params, "skip": skip, "limit": 100})
+            page = self._request(
+                "GET", path, params={**params, "skip": skip, "limit": 100}
+            )
             rows.extend(page)
             if len(page) < 100:
                 return rows
             skip += len(page)
 
-    def _request(self, method: str, path: str, *, json: dict | None = None,
-                 params: dict | None = None) -> Any:
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: dict | None = None,
+        params: dict | None = None,
+    ) -> Any:
         response = requests.request(
-            method, f"{self.base_url}/{path.lstrip('/')}",
+            method,
+            f"{self.base_url}/{path.lstrip('/')}",
             headers={"Authorization": f"Bearer {self._access_token()}"},
-            json=json, params=params, timeout=self.timeout,
+            json=json,
+            params=params,
+            timeout=self.timeout,
         )
         response.raise_for_status()
         payload = response.json()
@@ -121,7 +147,8 @@ class CoreApiClient:
     def _access_token(self) -> str:
         address = self.hotkey.ss58_address
         challenge = requests.post(
-            f"{self.base_url}/auth/wallet/challenge", json={"ss58_address": address},
+            f"{self.base_url}/auth/wallet/challenge",
+            json={"ss58_address": address},
             timeout=self.timeout,
         )
         challenge.raise_for_status()
@@ -129,7 +156,11 @@ class CoreApiClient:
         nonce = challenge_data["nonce"]
         verified = requests.post(
             f"{self.base_url}/auth/wallet/verify",
-            json={"nonce": nonce, "signature": self.hotkey.sign(nonce).hex(), "ss58_address": address},
+            json={
+                "nonce": nonce,
+                "signature": self.hotkey.sign(nonce).hex(),
+                "ss58_address": address,
+            },
             timeout=self.timeout,
         )
         verified.raise_for_status()
