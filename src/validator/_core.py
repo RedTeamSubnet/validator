@@ -433,6 +433,15 @@ class Validator(BaseValidator):
                 headers=self.validator_request_header_fn(data),
                 timeout=120,
             )
+            if not response.ok:
+                bt.logging.error(
+                    "[CENTRALIZED SCORING] "
+                    f"Request to {endpoint} failed: "
+                    f"ray_id={response.headers.get('CF-Ray', 'N/A')!r}, "
+                    f"request_id={response.headers.get('X-Request-ID', 'N/A')!r}, "
+                    f"status_code={response.status_code}, "
+                    f"response_message={response.text!r}"
+                )
             response.raise_for_status()
 
             # Parse response - Storage returns list of dicts (MongoDB documents)
