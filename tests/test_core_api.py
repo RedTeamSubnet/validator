@@ -1,77 +1,22 @@
 import datetime as dt
 from unittest.mock import Mock
 
-from src.validator.core_api import CoreApiClient, CoreCommitOutcome
+from src.validator.core_api import CoreApiClient
 
 
-def test_load_active_challenges_uses_core_as_the_authority():
+def test_fetch_weight_matrix_parses_endpoint_contract():
     client = CoreApiClient("https://core.example/api/v1", Mock())
-    client._list = listed = Mock(
-        return_value=[
-            {"id": "cha-active", "name": "active", "kind": "AAD", "is_active": True},
-            {"id": "cha-inactive", "name": "inactive", "kind": "BV", "is_active": False},
-        ]
+    client._request = request = Mock(
+        return_value={
+            "refreshed_at": "2026-10-05T22:45:11.003Z",
+            "entries": [{"uid": 0, "score": 0}, {"uid": 7, "score": 0.75}],
+        }
     )
 
-    assert client.load_active_challenges() == {
-        "active": {"_id": "cha-active", "kind": "AAD"}
-    }
-    listed.assert_called_once_with("challenges/", params={})
+    matrix = client.fetch_weight_matrix()
 
-
-def test_commit_outcome_identity_is_stable():
-    outcome = CoreCommitOutcome(
-        miner_uid=7,
-        miner_hotkey="hotkey",
-        challenge_name="challenge",
-        challenge_id="challenge-id",
-        cipher_commit="ciphertext",
-        revealed_key=None,
-        decrypted_commit=None,
-        status="discovered",
-        error=None,
-        committed_at=dt.datetime.now(dt.timezone.utc),
+    assert matrix.refreshed_at == dt.datetime(
+        2026, 10, 5, 22, 45, 11, 3000, tzinfo=dt.timezone.utc
     )
-    assert outcome.identity == "challenge-id:hotkey:ciphertext"
-
-
-def test_outcome_updates_one_commit_record():
-    client = CoreApiClient("https://core.example/api/v1", Mock())
-    client._request = request = Mock()
-    outcome = CoreCommitOutcome(
-        miner_uid=7, miner_hotkey="hotkey", challenge_name="challenge",
-        challenge_id="challenge-id", cipher_commit="ciphertext", revealed_key="key",
-        decrypted_commit="repo", status="decrypted", error=None,
-        committed_at=dt.datetime.now(dt.timezone.utc),
-    )
-
-    client._miner_id = Mock(return_value="miner-id")
-    client._list = Mock(return_value=[{"id": "commit-id", "miner_id": "miner-id", "cipher_commit": "ciphertext"}])
-
-    assert client.sync_commit(outcome) is True
-
-    request.assert_called_once()
-    assert request.call_args.args == ("PUT", "commits/commit-id")
-    assert request.call_args.kwargs["json"]["plain_commit"] == "repo"
-
-
-def test_missing_miner_skips_relay_without_subnet_sync():
-    client = CoreApiClient("https://core.example/api/v1", Mock())
-    client._request = request = Mock(return_value=[])
-    outcome = CoreCommitOutcome(
-        miner_uid=7,
-        miner_hotkey="hotkey",
-        challenge_name="challenge",
-        challenge_id="challenge-id",
-        cipher_commit="ciphertext",
-        revealed_key=None,
-        decrypted_commit=None,
-        status="discovered",
-        error=None,
-        committed_at=dt.datetime.now(dt.timezone.utc),
-    )
-
-    assert client.sync_commit(outcome) is False
-    request.assert_called_once_with(
-        "GET", "neurons/", params={"hotkey_address": "hotkey", "limit": 1}
-    )
+    assert matrix.entries == {0: 0.0, 7: 0.75}
+    request.assert_called_once_with("GET", "integration/validator/weight-matrix")
