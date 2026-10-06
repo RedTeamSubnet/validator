@@ -14,7 +14,6 @@ from .core_api import CoreApiClient, WeightMatrix
 
 
 class Validator(BaseValidator):
-    CACHE_EPOCHS = 3
 
     def __init__(self) -> None:
         super().__init__()
@@ -27,26 +26,21 @@ class Validator(BaseValidator):
 
     def set_weights(self) -> None:
         now = dt.datetime.now(dt.timezone.utc)
-        max_age = float(1200 * self.CACHE_EPOCHS)
-        cached = self.cache.load_weight_matrix(max_age, now)
         remote = self._fetch_remote_matrix()
-
-        candidates = self._ordered_candidates(remote, cached, now, max_age)
-        if not candidates:
-            bt.logging.error("[WEIGHTS] No fresh API or cached matrix; skipping")
-            return
-
-        source, matrix = candidates[0]
-        weights = self._build_weight_vector(matrix)
-        if source == "api" and (
-            cached is None or matrix.refreshed_at > cached.refreshed_at
-        ):
+        if remote is not None:
+            source, matrix = "api", remote
             self.cache.save_weight_matrix(matrix, now)
+        else:
+            matrix = self.cache.load_weight_matrix()
+            if matrix is None:
+                bt.logging.error("[WEIGHTS] No API or cached matrix; skipping")
+                return
+            source = "cache"
+        weights = self._build_weight_vector(matrix)
 
         bt.logging.info(
             f"[WEIGHTS] Using {source} matrix "
             f"refreshed_at={matrix.refreshed_at.isoformat()} "
-            f"age={matrix.age_seconds(now):.1f}s "
             f"entries={len(matrix.entries)} total={float(np.sum(weights)):.6f}"
         )
         processed_uids, processed_weights = (
@@ -91,32 +85,6 @@ class Validator(BaseValidator):
         except Exception:
             bt.logging.exception("[WEIGHTS] Failed to fetch Core API matrix")
             return None
-
-    @staticmethod
-    def _ordered_candidates(
-        remote: WeightMatrix | None,
-        cached: WeightMatrix | None,
-        now: dt.datetime,
-        max_age: float,
-    ) -> list[tuple[str, WeightMatrix]]:
-        candidates: list[tuple[str, WeightMatrix]] = []
-        if remote is not None and remote.age_seconds(now) <= max_age:
-            candidates.append(("api", remote))
-        elif remote is not None:
-            bt.logging.warning(
-                f"[WEIGHTS] API matrix is stale: "
-                f"age={remote.age_seconds(now):.1f}s max_age={max_age:.1f}s"
-            )
-        if cached is not None:
-            candidates.append(("cache", cached))
-        return sorted(
-            candidates,
-            key=lambda item: (
-                item[1].refreshed_at,
-                item[0] == "api",
-            ),
-            reverse=True,
-        )
 
     def _build_weight_vector(self, matrix: WeightMatrix) -> np.ndarray:
         weights = np.zeros(int(self.metagraph.n), dtype=np.float32)

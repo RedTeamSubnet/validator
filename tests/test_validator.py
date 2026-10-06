@@ -110,20 +110,6 @@ def test_set_weights_ignores_uid_outside_metagraph():
     np.testing.assert_array_equal(weights, np.array([0.0, 0.5, 0.0]))
 
 
-def test_newer_cache_wins_over_older_api_snapshot():
-    now = dt.datetime.now(UTC)
-    remote = WeightMatrix(
-        refreshed_at=now - dt.timedelta(minutes=20), entries={1: 1.0}
-    )
-    cached = WeightMatrix(
-        refreshed_at=now - dt.timedelta(minutes=10), entries={2: 1.0}
-    )
-
-    candidates = Validator._ordered_candidates(remote, cached, now, 3600)
-
-    assert candidates == [("cache", cached), ("api", remote)]
-
-
 def test_runtime_runs_one_immediate_cycle_then_stops():
     validator = object.__new__(BaseValidator)
     validator.should_exit = False

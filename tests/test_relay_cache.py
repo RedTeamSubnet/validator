@@ -18,10 +18,10 @@ def test_cache_persists_fresh_weight_matrix(tmp_path):
 
     cache.save_weight_matrix(matrix, now)
 
-    assert ValidatorCache(str(tmp_path)).load_weight_matrix(3600, now) == matrix
+    assert ValidatorCache(str(tmp_path)).load_weight_matrix() == matrix
 
 
-def test_cache_rejects_stale_matrix(tmp_path):
+def test_cache_keeps_daily_matrix_without_age_expiry(tmp_path):
     now = dt.datetime(2026, 10, 5, 23, 0, tzinfo=UTC)
     cache = ValidatorCache(str(tmp_path))
     cache.save_weight_matrix(
@@ -32,7 +32,7 @@ def test_cache_rejects_stale_matrix(tmp_path):
         now,
     )
 
-    assert cache.load_weight_matrix(3600, now) is None
+    assert cache.load_weight_matrix() is not None
 
 
 def test_cache_ignores_legacy_payload(tmp_path):
@@ -41,4 +41,4 @@ def test_cache_ignores_legacy_payload(tmp_path):
         json.dumps({"seen_commits": ["old"], "latest_weight_matrix": [0.25, 0.75]})
     )
 
-    assert ValidatorCache(str(tmp_path)).load_weight_matrix(3600) is None
+    assert ValidatorCache(str(tmp_path)).load_weight_matrix() is None
