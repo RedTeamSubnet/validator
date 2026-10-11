@@ -79,12 +79,51 @@ class Validator(BaseValidator):
             return
         bt.logging.success("[WEIGHTS] Weights included on chain")
 
+        self._post_commit_results(matrix, processed_uids, processed_weights)
+
     def _fetch_remote_matrix(self) -> WeightMatrix | None:
         try:
             return self.core_api_client.fetch_weight_matrix()
         except Exception:
             bt.logging.exception("[WEIGHTS] Failed to fetch Core API matrix")
             return None
+
+    def _post_commit_results(
+        self,
+        matrix: WeightMatrix,
+        processed_uids: np.ndarray,
+        processed_weights: np.ndarray,
+    ) -> None:
+        """Send the on-chain weights to the Core API as validator commit results."""
+        try:
+            hotkey_address = self.wallet.hotkey.ss58_address
+            validator_id = self.core_api_client.get_neuron_id(hotkey_address)
+            if not validator_id:
+                bt.logging.warning(
+                    f"[WEIGHTS] Neuron not found for hotkey {hotkey_address}; "
+                    f"skipping commit results"
+                )
+                return
+            entries = []
+            for uid, weight in zip(processed_uids, processed_weights):
+                uid_int = int(uid)
+                entries.append(
+                    {
+                        "validated_score": float(matrix.entries.get(uid_int, 0.0)),
+                        "weights": float(weight),
+                        "meta": {"uid": uid_int},
+                    }
+                )
+            self.core_api_client.post_commit_results(
+                validator_id=validator_id,
+                validator_uid=self.uid,
+                entries=entries,
+            )
+            bt.logging.success(
+                f"[WEIGHTS] Posted {len(entries)} commit results to Core API"
+            )
+        except Exception:
+            bt.logging.exception("[WEIGHTS] Failed to post commit results to Core API")
 
     def _build_weight_vector(self, matrix: WeightMatrix) -> np.ndarray:
         weights = np.zeros(int(self.metagraph.n), dtype=np.float32)
