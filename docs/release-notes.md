@@ -6,6 +6,14 @@ hide:
 
 # 📌 Release Notes
 
+## v2.3.26-261013 (2026-10-13)
+
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+
+
+**Full Changelog**: https://github.com/RedTeamSubnet/validator/compare/v2.3.10-260525...v2.3.26-261013
+
 ## v2.3.25-260929 (2026-09-29)
 
 <!-- Release notes generated using configuration in .github/release.yml at main -->
